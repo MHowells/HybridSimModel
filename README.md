@@ -36,12 +36,6 @@ To install the dependencies:
 
 - Matthew Howells: [0000-0002-3931-7027](https://orcid.org/0000-0002-3931-7027)
 
-## Citation
-
-To cite this repository:
-
-> Matthew Howells (2025) Hybrid Simulation Modelling for Orthopaedics. GitHub. https://github.com/MHowells/HybridSimModel.
-
 ## Funding 
 
 This code is funded by an Engineering and Physical Sciences Research Council 
