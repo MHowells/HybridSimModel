@@ -14,6 +14,8 @@ Deterministic Finite Automata (PDFAs). For more information on obtaining PDFAs
 used in the model, please visit my other repository, 
 [pattern_mining](https://github.com/MHowells/pattern_mining).
 
+This work was presented at The OR Society's 12th Simulation Workshop (SW25) conference. The poster, "Clinical Pathway Modelling of a Trauma and Orthopaedics Department", can be viewed in my repository, [SW25_poster](https://github.com/MHowells/SW25_poster).
+
 ## Installing Dependencies
 
 The model is written in Python 3.9.7, with the requirements in requirements.txt.
@@ -33,6 +35,12 @@ To install the dependencies:
 ## Author ORCID
 
 - Matthew Howells: [0000-0002-3931-7027](https://orcid.org/0000-0002-3931-7027)
+
+## Citation
+
+To cite this repository:
+
+> Matthew Howells (2025) Hybrid Simulation Modelling for Orthopaedics. GitHub. https://github.com/MHowells/HybridSimModel.
 
 ## Funding 
 
