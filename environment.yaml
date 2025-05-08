@@ -1,0 +1,14 @@
+name: hybrid-sim-model
+channels:
+  - conda-forge
+dependencies:
+  - decorator=5.2.1
+  - numpy=1.26.4
+  - matplotlib=3.9.4
+  - pandas=2.2.3
+  - pexpect=4.9.0
+  - pip
+  - python=3.10.17
+  - scipy=1.15.2
+  - pip:
+    - ciw==3.2.5
