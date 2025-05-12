@@ -47,6 +47,14 @@ dependencies by running the following command:
 - Daniel Gartner: [0000-0003-4361-8559](https://orcid.org/0000-0003-4361-8559)
 - Geraint Palmer: [0000-0001-7865-6964](https://orcid.org/0000-0001-7865-6964)
 
+## Citation
+
+To cite this repository:
+
+> Matthew Howells, Paul Harper, Daniel Gartner, Geraint Palmer (2025) Hybrid 
+Simulation Modelling for Orthopaedics. GitHub. 
+https://github.com/MHowells/HybridSimModel.
+
 ## Funding 
 
 This code is funded by an Engineering and Physical Sciences Research Council 
