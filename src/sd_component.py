@@ -238,3 +238,69 @@ class SD:
             presenting_rate=self.presenting_rate,
             t=t,
         )
+
+
+def seasonal_gatekeeping(baseline=8, amplitude=2, period=365, phase_shift=0):
+    """
+    Returns a gatekeeping function that varies seasonally based on a sine
+    function. The returned function computes the lambda values for each stock.
+
+    Parameters
+    ----------
+    baseline : float
+        average value of the seasonal variation
+    amplitude : float
+        amplitude of the seasonal variation
+    period : int
+        period of the seasonal variation (in days)
+    phase_shift : float
+        phase shift of the seasonal variation (in days)
+
+    Returns
+    -------
+    function
+        Gatekeeping function to calculate lambda values for each stock.
+    """
+    def gatekeeping_function(stocks, population, presenting_rate, t):
+        t = np.asarray(t)
+        is_scalar = np.isscalar(t) or t.shape == ()
+        stocks = np.array(stocks)
+
+        if is_scalar:
+            threshold = np.clip(
+                baseline + amplitude * np.sin(2 * np.pi * (t + phase_shift) / period),
+                0, None
+            )
+
+            if population == 0 or threshold == 0:
+                lambdas = np.zeros(3)
+            else:
+                remaining_capacity = threshold
+                lambdas = []
+                for stock in stocks:
+                    demand = presenting_rate * stock
+                    allowed = min(demand, remaining_capacity)
+                    lambdas.append(allowed)
+                    remaining_capacity -= allowed
+                    remaining_capacity = max(remaining_capacity, 0)
+        else:
+            thresholds = np.maximum(0, baseline + amplitude * np.sin(2 * np.pi * (t + phase_shift) / period))
+
+            population = np.array(population)
+            time_steps = len(t)
+            lambdas = np.zeros((3, time_steps))
+
+            for i in range(time_steps):
+                if population[i] == 0 or thresholds[i] == 0:
+                    lambdas[:, i] = 0
+                else:
+                    remaining_capacity = thresholds[i]
+                    for j in range(3):
+                        demand = presenting_rate * stocks[j, i]
+                        allowed = min(demand, remaining_capacity)
+                        lambdas[j, i] = allowed
+                        remaining_capacity -= allowed
+                        remaining_capacity = max(remaining_capacity, 0)
+        return lambdas
+    
+    return gatekeeping_function
