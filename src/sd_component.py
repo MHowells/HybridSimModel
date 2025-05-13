@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.integrate import odeint
+import matplotlib.pyplot as plt
 
 
 def proportional_gatekeeping(threshold):
@@ -110,71 +111,6 @@ def fixed_gatekeeping(threshold):
             return lambdas
     return gatekeeping_function
 
-
-def seasonal_gatekeeping(baseline=8, amplitude=2, period=365, phase_shift=0):
-    """
-    Returns a gatekeeping function that varies seasonally based on a sine
-    function. The returned function computes the lambda values for each stock.
-
-    Parameters
-    ----------
-    baseline : float
-        average value of the seasonal variation
-    amplitude : float
-        amplitude of the seasonal variation
-    period : int
-        period of the seasonal variation (in days)
-    phase_shift : float
-        phase shift of the seasonal variation (in days)
-
-    Returns
-    -------
-    function
-        Gatekeeping function to calculate lambda values for each stock.
-    """
-    def gatekeeping_function(stocks, population, presenting_rate, t):
-        t = np.asarray(t)
-        is_scalar = np.isscalar(t) or t.shape == ()
-        stocks = np.array(stocks)
-
-        if is_scalar:
-            threshold = np.clip(
-                baseline + amplitude * np.sin(2 * np.pi * (t + phase_shift) / period),
-                0, None
-            )
-
-            if population == 0 or threshold == 0:
-                lambdas = np.zeros(3)
-            else:
-                remaining_capacity = threshold
-                lambdas = []
-                for stock in stocks:
-                    demand = presenting_rate * stock
-                    allowed = min(demand, remaining_capacity)
-                    lambdas.append(allowed)
-                    remaining_capacity -= allowed
-                    remaining_capacity = max(remaining_capacity, 0)
-        else:
-            thresholds = np.maximum(0, baseline + amplitude * np.sin(2 * np.pi * (t + phase_shift) / period))
-
-            population = np.array(population)
-            time_steps = len(t)
-            lambdas = np.zeros((3, time_steps))
-
-            for i in range(time_steps):
-                if population[i] == 0 or thresholds[i] == 0:
-                    lambdas[:, i] = 0
-                else:
-                    remaining_capacity = thresholds[i]
-                    for j in range(3):
-                        demand = presenting_rate * stocks[j, i]
-                        allowed = min(demand, remaining_capacity)
-                        lambdas[j, i] = allowed
-                        remaining_capacity -= allowed
-                        remaining_capacity = max(remaining_capacity, 0)
-        return lambdas
-    
-    return gatekeeping_function
 
 class SD:
     """
@@ -305,3 +241,170 @@ class SD:
         )
 
 
+def seasonal_gatekeeping(baseline=8, amplitude=2, period=365, phase_shift=0):
+    """
+    Returns a gatekeeping function that varies seasonally based on a sine
+    function. The returned function computes the lambda values for each stock.
+
+    Parameters
+    ----------
+    baseline : float
+        average value of the seasonal variation
+    amplitude : float
+        amplitude of the seasonal variation
+    period : int
+        period of the seasonal variation (in days)
+    phase_shift : float
+        phase shift of the seasonal variation (in days)
+
+    Returns
+    -------
+    function
+        Gatekeeping function to calculate lambda values for each stock.
+    """
+    def gatekeeping_function(stocks, population, presenting_rate, t):
+        t = np.asarray(t)
+        is_scalar = np.isscalar(t) or t.shape == ()
+        stocks = np.array(stocks)
+
+        if is_scalar:
+            threshold = np.clip(
+                baseline + amplitude * np.sin(2 * np.pi * (t + phase_shift) / period),
+                0, None
+            )
+
+            if population == 0 or threshold == 0:
+                lambdas = np.zeros(3)
+            else:
+                remaining_capacity = threshold
+                lambdas = []
+                for stock in stocks:
+                    demand = presenting_rate * stock
+                    allowed = min(demand, remaining_capacity)
+                    lambdas.append(allowed)
+                    remaining_capacity -= allowed
+                    remaining_capacity = max(remaining_capacity, 0)
+        else:
+            thresholds = np.maximum(0, baseline + amplitude * np.sin(2 * np.pi * (t + phase_shift) / period))
+
+            population = np.array(population)
+            time_steps = len(t)
+            lambdas = np.zeros((3, time_steps))
+
+            for i in range(time_steps):
+                if population[i] == 0 or thresholds[i] == 0:
+                    lambdas[:, i] = 0
+                else:
+                    remaining_capacity = thresholds[i]
+                    for j in range(3):
+                        demand = presenting_rate * stocks[j, i]
+                        allowed = min(demand, remaining_capacity)
+                        lambdas[j, i] = allowed
+                        remaining_capacity -= allowed
+                        remaining_capacity = max(remaining_capacity, 0)
+        return lambdas
+    
+    return gatekeeping_function
+
+
+def plot_stocks_over_time(stocks, t, ylim, title="Stock Size Over Time (Illustrative)", filename=None):
+    """
+    Plots the stock sizes over time.
+
+    Parameters
+    ----------
+    stocks : list of arrays
+        List of 3 arrays representing the stock sizes P1, P2, P3.
+    t : array-like
+        Time vector.
+    ylim : tuple
+        Y-axis limits for the plot.
+    title : str
+        Title of the plot.
+    filename : str, optional
+        Filename to save the plot (default is None, which does not save the plot).
+    """
+    fig, ax = plt.subplots(figsize=(6, 4))
+    colors = ["#FFC107", "#1E88E5", "#D81B60"]
+    for i in range(len(stocks)):
+        ax.plot(t, stocks[i], label=f"$P_{i+1}$", color=colors[i])
+    ax.set_title(title, fontsize=16)
+    ax.set_xlabel("Time (days)", fontsize=14)
+    ax.set_ylabel("Stock Size", fontsize=14)
+    ax.set_ylim(ylim)
+    ax.legend(fontsize=10)
+    ax.grid(True, which='both', linestyle='--', linewidth=0.5, color='gray')  # optional
+    plt.tight_layout()
+    plt.show()
+    if filename:
+        plt.savefig(filename, dpi=300, bbox_inches='tight', transparent=True)
+
+
+def plot_stacked_stocks_over_time(stocks, t, capacity_multiplier=0.4, title="Stacked Chart of SD Stocks Over Time", filename=None):
+    """
+    Plots a stacked area chart of SD stocks over time with a capacity line.
+
+    Parameters
+    ----------
+    stocks : list of arrays
+        List of 3 arrays representing the stock sizes P1, P2, P3.
+    t : array-like
+        Time vector.
+    capacity_multiplier : float, optional
+        Multiplier for plotting the dashed capacity line (default is 0.4).
+    title : str
+        Title of the plot.
+    """
+    fig, ax = plt.subplots(figsize=(6, 4))
+    colors = ["#FFC107", "#1E88E5", "#D81B60"]
+
+    P0, P1, P2 = stocks[0], stocks[1], stocks[2]
+
+    ax.fill_between(t, P0, 0, color=colors[0], label="$P_1$ (High)")
+    ax.fill_between(t, P1 + P0, P0, color=colors[1], label="$P_2$ (Medium)")
+    ax.fill_between(t, P2 + P1 + P0, P1 + P0, color=colors[2], label="$P_3$ (Low)")
+
+    total_pop = P0 + P1 + P2
+    ax.plot(t, total_pop * capacity_multiplier, c="black", linestyle="--", label="Threshold")
+
+    ax.set_xlabel("Time", fontsize=12)
+    ax.set_ylabel("Population in Stock", fontsize=12)
+    ax.set_title(title, fontsize=14)
+    ax.legend(fontsize=10)
+    ax.grid(True, which="both", linestyle="--", linewidth=0.5, color="gray")
+    plt.tight_layout()
+    plt.show()
+    if filename:
+        plt.savefig(filename, dpi=300, bbox_inches='tight', transparent=True)
+
+
+def plot_referral_rates_over_time(referral_rates, t, ylim, title="Referral Rates Over Time (Illustrative)", filename=None):
+    """
+    Plots the referral rates over time.
+    Parameters
+    ----------
+    referral_rates : list of arrays
+        List of 3 arrays representing the referral rates R1, R2, R3.
+    t : array-like
+        Time vector.
+    ylim : tuple
+        Y-axis limits for the plot.
+    title : str
+        Title of the plot.
+    filename : str, optional
+        Filename to save the plot (default is None, which does not save the plot).
+    """
+    fig, ax = plt.subplots(figsize=(6, 4))
+    colors = ["#FFC107", "#1E88E5", "#D81B60"]
+    for i in range(len(referral_rates)):
+        ax.plot(t, referral_rates[i], label=f"$R_{i+1}$", color=colors[i])
+    ax.set_title(title, fontsize=16)
+    ax.set_xlabel("Time (days)", fontsize=14)
+    ax.set_ylabel("Referral Rate", fontsize=14)
+    ax.set_ylim(ylim)
+    ax.grid(True, which='both', linestyle='--', linewidth=0.5, color='gray')
+    ax.legend(fontsize=10)
+    plt.tight_layout()
+    plt.show()
+    if filename:
+        plt.savefig(filename, dpi=300, bbox_inches='tight', transparent=True)
