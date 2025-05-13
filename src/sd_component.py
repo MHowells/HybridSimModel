@@ -307,7 +307,7 @@ def seasonal_gatekeeping(baseline=8, amplitude=2, period=365, phase_shift=0):
     return gatekeeping_function
 
 
-def plot_stocks_over_time(stocks, t, ylim, title="Stock Size Over Time (Illustrative)", filename=None):
+def plot_stocks_over_time(stocks, t, ylim=None, title="Stock Size Over Time (Illustrative)", filename=None):
     """
     Plots the stock sizes over time.
 
@@ -331,7 +331,8 @@ def plot_stocks_over_time(stocks, t, ylim, title="Stock Size Over Time (Illustra
     ax.set_title(title, fontsize=16)
     ax.set_xlabel("Time (days)", fontsize=14)
     ax.set_ylabel("Stock Size", fontsize=14)
-    ax.set_ylim(ylim)
+    if ylim:
+        ax.set_ylim(ylim)
     ax.legend(fontsize=10)
     ax.grid(True, which='both', linestyle='--', linewidth=0.5, color='gray')  # optional
     plt.tight_layout()
@@ -340,7 +341,7 @@ def plot_stocks_over_time(stocks, t, ylim, title="Stock Size Over Time (Illustra
         plt.savefig(filename, dpi=300, bbox_inches='tight', transparent=True)
 
 
-def plot_stacked_stocks_over_time(stocks, t, capacity_multiplier=0.4, title="Stacked Chart of SD Stocks Over Time", filename=None):
+def plot_stacked_stocks_over_time(stocks, t, capacity_multiplier=0.4, ylim=None, title="Stacked Chart of SD Stocks Over Time", filename=None):
     """
     Plots a stacked area chart of SD stocks over time with a capacity line.
 
@@ -369,6 +370,8 @@ def plot_stacked_stocks_over_time(stocks, t, capacity_multiplier=0.4, title="Sta
 
     ax.set_xlabel("Time", fontsize=12)
     ax.set_ylabel("Population in Stock", fontsize=12)
+    if ylim:
+        ax.set_ylim(ylim)
     ax.set_title(title, fontsize=14)
     ax.legend(fontsize=10)
     ax.grid(True, which="both", linestyle="--", linewidth=0.5, color="gray")
@@ -378,7 +381,7 @@ def plot_stacked_stocks_over_time(stocks, t, capacity_multiplier=0.4, title="Sta
         plt.savefig(filename, dpi=300, bbox_inches='tight', transparent=True)
 
 
-def plot_referral_numbers_over_time(referral_numbers, t, ylim, title="Referral Numbers Over Time (Illustrative)", filename=None):
+def plot_referral_numbers_over_time(referral_numbers, t, ylim=None, title="Referral Numbers Over Time (Illustrative)", filename=None):
     """
     Plots the number of referrals over time.
     Parameters
@@ -397,11 +400,12 @@ def plot_referral_numbers_over_time(referral_numbers, t, ylim, title="Referral N
     fig, ax = plt.subplots(figsize=(6, 4))
     colors = ["#FFC107", "#1E88E5", "#D81B60"]
     for i in range(len(referral_numbers)):
-        ax.plot(t, referral_numbers[i], label=f"$R_{i+1}$", color=colors[i])
+        ax.plot(t, referral_numbers[i], label=f"$Λ_{i+1}(t)$", color=colors[i])
     ax.set_title(title, fontsize=16)
     ax.set_xlabel("Time (days)", fontsize=14)
     ax.set_ylabel("Referral Rate", fontsize=14)
-    ax.set_ylim(ylim)
+    if ylim:
+        ax.set_ylim(ylim)
     ax.grid(True, which='both', linestyle='--', linewidth=0.5, color='gray')
     ax.legend(fontsize=10)
     plt.tight_layout()
