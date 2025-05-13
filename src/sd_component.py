@@ -378,13 +378,13 @@ def plot_stacked_stocks_over_time(stocks, t, capacity_multiplier=0.4, title="Sta
         plt.savefig(filename, dpi=300, bbox_inches='tight', transparent=True)
 
 
-def plot_referral_rates_over_time(referral_rates, t, ylim, title="Referral Rates Over Time (Illustrative)", filename=None):
+def plot_referral_numbers_over_time(referral_numbers, t, ylim, title="Referral Numbers Over Time (Illustrative)", filename=None):
     """
-    Plots the referral rates over time.
+    Plots the number of referrals over time.
     Parameters
     ----------
     referral_rates : list of arrays
-        List of 3 arrays representing the referral rates R1, R2, R3.
+        List of 3 arrays representing the referral numbers R1, R2, R3.
     t : array-like
         Time vector.
     ylim : tuple
@@ -396,8 +396,8 @@ def plot_referral_rates_over_time(referral_rates, t, ylim, title="Referral Rates
     """
     fig, ax = plt.subplots(figsize=(6, 4))
     colors = ["#FFC107", "#1E88E5", "#D81B60"]
-    for i in range(len(referral_rates)):
-        ax.plot(t, referral_rates[i], label=f"$R_{i+1}$", color=colors[i])
+    for i in range(len(referral_numbers)):
+        ax.plot(t, referral_numbers[i], label=f"$R_{i+1}$", color=colors[i])
     ax.set_title(title, fontsize=16)
     ax.set_xlabel("Time (days)", fontsize=14)
     ax.set_ylabel("Referral Rate", fontsize=14)
