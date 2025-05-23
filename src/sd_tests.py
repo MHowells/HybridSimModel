@@ -2,7 +2,8 @@ import numpy as np
 from scipy.integrate import odeint
 import sd_component as sd
 
-gk_threshold = 0.4
+proportional_threshold = 0.4
+fixed_threshold = 16
 sample_stocks = [
     np.array([1000, 1000.14235114, 1000.28470455, 1000.42706025, 1000.56941821]),
     np.array([3000, 3000.09854025, 3000.19706101, 3000.29556228, 3000.39404405]),
@@ -13,7 +14,7 @@ ts = np.linspace(0, 365 * 3, 100000 + 1)
 
 
 def test_proportional_gatekeeping():
-    gatekeeping = sd.proportional_gatekeeping(threshold=gk_threshold)
+    gatekeeping = sd.proportional_gatekeeping(threshold=proportional_threshold)
     assert callable(gatekeeping)
 
     obtained_referrals_time_point = gatekeeping(
@@ -35,6 +36,41 @@ def test_proportional_gatekeeping():
         np.array([2, 2.0002847, 2.00056941, 2.00085412, 2.00113884]),
         np.array([6, 5.99964522, 5.99929043, 5.99893564, 5.99858085]),
         np.array([0, 0, 0, 0, 0]),
+    ]
+    assert np.allclose(
+        obtained_referrals_time_series[0], expected_referrals_time_series[0]
+    )
+    assert np.allclose(
+        obtained_referrals_time_series[1], expected_referrals_time_series[1]
+    )
+    assert np.allclose(
+        obtained_referrals_time_series[2], expected_referrals_time_series[2]
+    )
+
+
+def test_fixed_gatekeeping():
+    gatekeeping = sd.fixed_gatekeeping(threshold=fixed_threshold)
+    assert callable(gatekeeping)
+
+    obtained_referrals_time_point = gatekeeping(
+        stocks=[sample_stocks[0][0], sample_stocks[1][0], sample_stocks[2][0]],
+        population=sample_stocks[0][0] + sample_stocks[1][0] + sample_stocks[2][0],
+        presenting_rate=presenting_rate,
+        t=0,
+    )
+    expected_referrals_time_point = [2, 6, 8]
+    assert np.allclose(obtained_referrals_time_point, expected_referrals_time_point)
+
+    obtained_referrals_time_series = gatekeeping(
+        stocks=[sample_stocks[0], sample_stocks[1], sample_stocks[2]],
+        population=sample_stocks[0] + sample_stocks[1] + sample_stocks[2],
+        presenting_rate=presenting_rate,
+        t=ts,
+    )
+    expected_referrals_time_series = [
+        np.array([2, 2.0002847 , 2.00056941, 2.00085412, 2.00113884]),
+        np.array([6, 6.00019708, 6.00039412, 6.00059112, 6.00078809]),
+        np.array([8, 7.99951822, 7.99903647, 7.99855475, 7.99807308]),
     ]
     assert np.allclose(
         obtained_referrals_time_series[0], expected_referrals_time_series[0]
