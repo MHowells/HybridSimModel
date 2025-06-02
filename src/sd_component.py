@@ -46,8 +46,8 @@ def proportional_gatekeeping(threshold):
             positives = stock > 0
             if np.isscalar(subtracted):
                 ratio[positives] = (
-                    (threshold * population) - subtracted
-                ) / stock
+                    (threshold * population[positives]) - subtracted
+                ) / stock[positives]
             else:
                 ratio[positives] = (
                     (threshold * population[positives])
