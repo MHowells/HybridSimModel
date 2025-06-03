@@ -190,8 +190,8 @@ class SD:
         unwell_splits,
         gatekeeping_function,
         presenting_rate,
-        deterioration_rate,
-        incidence_rate,
+        deterioration_function,
+        incidence_function,
     ):
         """
         Initialised the parameters for the SD component
@@ -208,10 +208,10 @@ class SD:
             function to calculate lambda values for each stock
         presenting_rate : a positive float <= 1
             rate at which patients present for treatment
-        deterioration_rate : a positive float <= 1
-            rate at which patients deteriorate
-        incidence_rate : a positive float <= 1
-            rate at which new patients enter the system
+        deterioration_function : a function
+            function to calculate the rate at which patients deteriorate
+        incidence_function : a function
+            function to calculate the rate at which new patients enter the system
         """
         w = unwell_splits
         self.initial_population = initial_population
@@ -223,8 +223,8 @@ class SD:
         ]
         self.presenting_rate = presenting_rate
         self.gatekeeping_function = gatekeeping_function
-        self.deterioration_rate = deterioration_rate
-        self.incidence_rate = incidence_rate
+        self.deterioration_rate = deterioration_function
+        self.incidence_rate = incidence_function
         self.time = np.array([0])
         self.lambdas = None
 
@@ -264,16 +264,16 @@ class SD:
             t=time_domain,
         )
 
-        dP_onedt = -lambdas[0] + self.deterioration_rate * P_two
+        dP_onedt = -lambdas[0] + self.deterioration_rate(t=time_domain) * P_two
         dP_twodt = (
             -lambdas[1]
-            - (self.deterioration_rate * P_two)
-            + (self.deterioration_rate * P_three)
+            - (self.deterioration_rate(t=time_domain) * P_two)
+            + (self.deterioration_rate(t=time_domain) * P_three)
         )
         dP_threedt = (
             -lambdas[2]
-            - (self.deterioration_rate * P_three)
-            + (self.incidence_rate * susceptible_population)
+            - (self.deterioration_rate(t=time_domain) * P_three)
+            + (self.incidence_rate(t=time_domain) * susceptible_population)
         )
         return dP_onedt, dP_twodt, dP_threedt
 
