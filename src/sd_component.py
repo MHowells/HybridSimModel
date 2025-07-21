@@ -17,7 +17,7 @@ def proportional_gatekeeping(threshold):
     function
         Function to calculate lambda values for each stock.
     """
-    def gatekeeping_function(stocks, population, presenting_rate, t):
+    def gatekeeping_function(stocks, population, presenting_proportion, t):
         """
         Gatekeeping function to calculate lambda values for each stock.
         Parameters
@@ -26,8 +26,8 @@ def proportional_gatekeeping(threshold):
             Stock levels at current time step t or over time
         population : float or array
             Total population at time t (scalar or array)
-        presenting_rate : float in [0, 1]
-            Rate of patients presenting from each stock
+        presenting_proportion : float in [0, 1]
+            Proportion of patients presenting from each stock
         Returns
         -------
         list
@@ -53,7 +53,7 @@ def proportional_gatekeeping(threshold):
                     (threshold * population[positives])
                     - subtracted[positives]
                 ) / stock[positives]
-            lambdas.append(presenting_rate * np.clip(ratio, 0, 1) * stock)
+            lambdas.append(presenting_proportion * np.clip(ratio, 0, 1) * stock)
         return lambdas
     return gatekeeping_function
 
@@ -72,7 +72,7 @@ def fixed_gatekeeping(threshold):
     function
         Function to calculate lambda values for each stock.
     """
-    def gatekeeping_function(stocks, population, presenting_rate, t):
+    def gatekeeping_function(stocks, population, presenting_proportion, t):
         """
         Gatekeeping function to calculate lambda values for each stock.
         Parameters
@@ -81,8 +81,8 @@ def fixed_gatekeeping(threshold):
             Stock levels at current time step t or over time
         population : float or array
             Total population at time t (scalar or array)
-        presenting_rate : float in [0, 1]
-            Rate of patients presenting from each stock
+        presenting_proportion : float in [0, 1]
+            Proportion of patients presenting from each stock
         Returns
         -------
         list
@@ -92,7 +92,7 @@ def fixed_gatekeeping(threshold):
             remaining_capacity = threshold
             lambdas = []
             for stock in stocks:
-                demand = presenting_rate * stock
+                demand = presenting_proportion * stock
                 allowed = min(demand, remaining_capacity)
                 lambdas.append(allowed)
                 remaining_capacity -= allowed
@@ -104,7 +104,7 @@ def fixed_gatekeeping(threshold):
             lambdas = [np.zeros(time_steps) for _ in stocks]
             remaining_capacity = np.full(time_steps, threshold, dtype=float)
             for i, stock in enumerate(stocks):
-                demand = presenting_rate * stock
+                demand = presenting_proportion * stock
                 allowed = np.minimum(demand, remaining_capacity)
                 lambdas[i] = allowed
                 remaining_capacity = np.maximum(remaining_capacity - allowed, 0)
@@ -133,7 +133,7 @@ def seasonal_gatekeeping(baseline=8, amplitude=2, period=365, phase_shift=0):
     function
         Gatekeeping function to calculate lambda values for each stock.
     """
-    def gatekeeping_function(stocks, population, presenting_rate, t):
+    def gatekeeping_function(stocks, population, presenting_proportion, t):
         t = np.asarray(t)
         is_scalar = np.isscalar(t) or t.shape == ()
         stocks = np.array(stocks)
@@ -150,7 +150,7 @@ def seasonal_gatekeeping(baseline=8, amplitude=2, period=365, phase_shift=0):
                 remaining_capacity = threshold
                 lambdas = []
                 for stock in stocks:
-                    demand = presenting_rate * stock
+                    demand = presenting_proportion * stock
                     allowed = min(demand, remaining_capacity)
                     lambdas.append(allowed)
                     remaining_capacity -= allowed
@@ -168,7 +168,7 @@ def seasonal_gatekeeping(baseline=8, amplitude=2, period=365, phase_shift=0):
                 else:
                     remaining_capacity = thresholds[i]
                     for j in range(3):
-                        demand = presenting_rate * stocks[j, i]
+                        demand = presenting_proportion * stocks[j, i]
                         allowed = min(demand, remaining_capacity)
                         lambdas[j, i] = allowed
                         remaining_capacity -= allowed
@@ -189,7 +189,7 @@ class SD:
         unwell_proportion,
         unwell_splits,
         gatekeeping_function,
-        presenting_rate,
+        presenting_proportion,
         deterioration_function,
         incidence_function,
     ):
@@ -206,8 +206,8 @@ class SD:
             representing the proportions of the unwell population in each stock
         gatekeeping_function : a function
             function to calculate lambda values for each stock
-        presenting_rate : a positive float <= 1
-            rate at which patients present for treatment
+        presenting_proportion : a positive float <= 1
+            proportion of patients presenting for treatment
         deterioration_function : a function
             function to calculate the rate at which patients deteriorate
         incidence_function : a function
@@ -221,7 +221,7 @@ class SD:
             unwell_pop * w[1], 
             unwell_pop * w[2]
         ]
-        self.presenting_rate = presenting_rate
+        self.presenting_proportion = presenting_proportion
         self.gatekeeping_function = gatekeeping_function
         self.deterioration_rate = deterioration_function
         self.incidence_rate = incidence_function
@@ -260,7 +260,7 @@ class SD:
         lambdas = self.gatekeeping_function(
             stocks=all_stocks,
             population=N_current,
-            presenting_rate=self.presenting_rate,
+            presenting_proportion=self.presenting_proportion,
             t=time_domain,
         )
 
@@ -302,7 +302,7 @@ class SD:
         self.lambdas = self.gatekeeping_function(
             stocks=[P1, P2, P3],
             population=P1 + P2 + P3,
-            presenting_rate=self.presenting_rate,
+            presenting_proportion=self.presenting_proportion,
             t=t,
         )
 

@@ -9,7 +9,7 @@ sample_stocks = [
     np.array([3000, 3000.09854025, 3000.19706101, 3000.29556228, 3000.39404405]),
     np.array([6000, 5999.67150899, 5999.34303597, 5999.01458093, 5998.68614387]),
 ]
-presenting_rate = 0.002
+presenting_proportion = 0.002
 ts_sample = np.array([0, 1, 2, 3, 4])
 
 
@@ -20,7 +20,7 @@ def test_proportional_gatekeeping():
     obtained_referrals_time_point = gatekeeping(
         stocks=[sample_stocks[0][0], sample_stocks[1][0], sample_stocks[2][0]],
         population=sample_stocks[0][0] + sample_stocks[1][0] + sample_stocks[2][0],
-        presenting_rate=presenting_rate,
+        presenting_proportion=presenting_proportion,
         t=0,
     )
     expected_referrals_time_point = [2, 6, 0]
@@ -29,7 +29,7 @@ def test_proportional_gatekeeping():
     obtained_referrals_time_series = gatekeeping(
         stocks=[sample_stocks[0], sample_stocks[1], sample_stocks[2]],
         population=sample_stocks[0] + sample_stocks[1] + sample_stocks[2],
-        presenting_rate=presenting_rate,
+        presenting_proportion=presenting_proportion,
         t=ts_sample,
     )
     expected_referrals_time_series = [
@@ -55,7 +55,7 @@ def test_fixed_gatekeeping():
     obtained_referrals_time_point = gatekeeping(
         stocks=[sample_stocks[0][0], sample_stocks[1][0], sample_stocks[2][0]],
         population=sample_stocks[0][0] + sample_stocks[1][0] + sample_stocks[2][0],
-        presenting_rate=presenting_rate,
+        presenting_proportion=presenting_proportion,
         t=0,
     )
     expected_referrals_time_point = [2, 6, 8]
@@ -64,7 +64,7 @@ def test_fixed_gatekeeping():
     obtained_referrals_time_series = gatekeeping(
         stocks=[sample_stocks[0], sample_stocks[1], sample_stocks[2]],
         population=sample_stocks[0] + sample_stocks[1] + sample_stocks[2],
-        presenting_rate=presenting_rate,
+        presenting_proportion=presenting_proportion,
         t=ts_sample,
     )
     expected_referrals_time_series = [
@@ -90,7 +90,7 @@ def test_seasonal_gatekeeping():
     obtained_referrals_time_point = gatekeeping(
         stocks=[sample_stocks[0][0], sample_stocks[1][0], sample_stocks[2][0]],
         population=sample_stocks[0][0] + sample_stocks[1][0] + sample_stocks[2][0],
-        presenting_rate=presenting_rate,
+        presenting_proportion=presenting_proportion,
         t=0,
     )
     expected_referrals_time_point = [2, 6, 0]
@@ -99,7 +99,7 @@ def test_seasonal_gatekeeping():
     obtained_referrals_time_series = gatekeeping(
         stocks=[sample_stocks[0], sample_stocks[1], sample_stocks[2]],
         population=sample_stocks[0] + sample_stocks[1] + sample_stocks[2],
-        presenting_rate=presenting_rate,
+        presenting_proportion=presenting_proportion,
         t=ts_sample,
     )
     expected_referrals_time_series = [
