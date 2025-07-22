@@ -256,7 +256,6 @@ class SD:
         if N_current == 0:
             return 0, 0, 0
 
-        susceptible_population = max(self.initial_population - N_current, 0)
         lambdas = self.gatekeeping_function(
             stocks=all_stocks,
             population=N_current,
@@ -273,7 +272,7 @@ class SD:
         dP_threedt = (
             -lambdas[2]
             - (self.deterioration_rate(t=time_domain) * P_three)
-            + (self.incidence_rate(t=time_domain) * susceptible_population)
+            + (self.incidence_rate(t=time_domain, population_size=self.initial_population))
         )
         return dP_onedt, dP_twodt, dP_threedt
 
