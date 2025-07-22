@@ -307,6 +307,48 @@ class SD:
         )
 
 
+def get_time_dependent_incidence_rates(incidence_proportions, period):
+    """
+    Returns a function that calculates the incidence rate based on time
+    and population size, using a list of incidence proportions and a period.
+    Parameters
+    ----------
+    incidence_proportions : list of floats
+        List of incidence proportions for each time period.
+    period : int
+        The period over which the incidence rates are defined (in days).
+    Returns
+    -------
+    function
+        A function that takes time (t) and population size, and returns the
+        incidence rate for that time.
+    """
+    incidence_list = list(incidence_proportions)
+    time_dict = dict(enumerate(incidence_list))
+    fallback = list(time_dict.values())[-1]
+
+    def incidence_function(t, population_size):
+        """
+        Calculates the incidence rate based on time and population size.
+        Parameters
+        ----------
+        t : float
+            The time at which to calculate the incidence rate.
+        population_size : int
+            The population size at the time of calculation.
+        Returns
+        -------
+        float
+            The incidence rate for the given time and population size.
+        """
+        if population_size == 0:
+            return 0
+        index = int(t // period)
+        proportion = time_dict.get(index, fallback)
+        return (proportion * population_size) / period
+    return incidence_function
+
+
 def plot_stocks_over_time(stocks, t, ylim=None, title="Stock Size Over Time (Illustrative)", filename=None):
     """
     Plots the stock sizes over time.
