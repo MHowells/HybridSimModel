@@ -349,6 +349,47 @@ def get_time_dependent_incidence_rates(incidence_proportions, period):
     return incidence_function
 
 
+def get_time_dependent_recovery_rates(recovery_proportions, period):
+    """
+    Returns a function that calculates the recovery rate based on time
+    and stock size, using a list of recovery proportions and a period.
+    Parameters
+    ----------
+    recovery_proportions : list of floats
+        List of recovery proportions for each time period.
+    period : int
+        The period over which the recovery rates are defined (in days).
+    Returns
+    -------
+    function
+        A function that takes time (t) and stock size, and returns the
+        recovery rate for that time.
+    """
+    recovery_list = list(recovery_proportions)
+    time_dict = dict(enumerate(recovery_list))
+    fallback = list(time_dict.values())[-1]
+
+    def recovery_function(t, stock_size):
+        """
+        Calculates the recovery rate based on time and stock size.
+        Parameters
+        t : float
+            The time at which to calculate the recovery rate.
+        stock_size : int
+            The stock size at the time of calculation.
+        Returns
+        -------
+        float
+            The recovery rate for the given time and stock size.
+        """
+        if stock_size == 0:
+            return 0
+        index = int(t // period)
+        value = time_dict.get(index, fallback)
+        return (value * stock_size) / period
+    return recovery_function
+
+
 def plot_stocks_over_time(stocks, t, ylim=None, title="Stock Size Over Time (Illustrative)", filename=None):
     """
     Plots the stock sizes over time.
