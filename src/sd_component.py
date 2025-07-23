@@ -17,6 +17,7 @@ def proportional_gatekeeping(threshold):
     function
         Function to calculate lambda values for each stock.
     """
+
     def gatekeeping_function(stocks, population, presenting_proportion, t):
         """
         Gatekeeping function to calculate lambda values for each stock.
@@ -50,11 +51,11 @@ def proportional_gatekeeping(threshold):
                 ) / stock[positives]
             else:
                 ratio[positives] = (
-                    (threshold * population[positives])
-                    - subtracted[positives]
+                    (threshold * population[positives]) - subtracted[positives]
                 ) / stock[positives]
             lambdas.append(presenting_proportion * np.clip(ratio, 0, 1) * stock)
         return lambdas
+
     return gatekeeping_function
 
 
@@ -72,6 +73,7 @@ def fixed_gatekeeping(threshold):
     function
         Function to calculate lambda values for each stock.
     """
+
     def gatekeeping_function(stocks, population, presenting_proportion, t):
         """
         Gatekeeping function to calculate lambda values for each stock.
@@ -109,6 +111,7 @@ def fixed_gatekeeping(threshold):
                 lambdas[i] = allowed
                 remaining_capacity = np.maximum(remaining_capacity - allowed, 0)
             return lambdas
+
     return gatekeeping_function
 
 
@@ -133,6 +136,7 @@ def seasonal_gatekeeping(baseline=8, amplitude=2, period=365, phase_shift=0):
     function
         Gatekeeping function to calculate lambda values for each stock.
     """
+
     def gatekeeping_function(stocks, population, presenting_proportion, t):
         t = np.asarray(t)
         is_scalar = np.isscalar(t) or t.shape == ()
@@ -141,7 +145,8 @@ def seasonal_gatekeeping(baseline=8, amplitude=2, period=365, phase_shift=0):
         if is_scalar:
             threshold = np.clip(
                 baseline + amplitude * np.sin(2 * np.pi * (t + phase_shift) / period),
-                0, None
+                0,
+                None,
             )
 
             if population == 0 or threshold == 0:
@@ -156,7 +161,9 @@ def seasonal_gatekeeping(baseline=8, amplitude=2, period=365, phase_shift=0):
                     remaining_capacity -= allowed
                     remaining_capacity = max(remaining_capacity, 0)
         else:
-            thresholds = np.maximum(0, baseline + amplitude * np.sin(2 * np.pi * (t + phase_shift) / period))
+            thresholds = np.maximum(
+                0, baseline + amplitude * np.sin(2 * np.pi * (t + phase_shift) / period)
+            )
 
             population = np.array(population)
             time_steps = len(t)
@@ -174,7 +181,7 @@ def seasonal_gatekeeping(baseline=8, amplitude=2, period=365, phase_shift=0):
                         remaining_capacity -= allowed
                         remaining_capacity = max(remaining_capacity, 0)
         return lambdas
-    
+
     return gatekeeping_function
 
 
@@ -185,8 +192,8 @@ class SD:
 
     def __init__(
         self,
-        initial_population,
-        unwell_proportion,
+        population_function,
+        initial_unwell_proportion,
         unwell_splits,
         gatekeeping_function,
         presenting_proportion,
@@ -198,9 +205,9 @@ class SD:
 
         Parameters
         ----------
-        initial_population : a positive integer
-            initial population of the system
-        unwell_proportion : a positive float <= 1
+        population_function : function
+            A function that returns the population size at a given time.
+        initial_unwell_proportion : a positive float <= 1
             proportion of the initial population that is unwell
         unwell_splits : a tuple of three floats that sum to 1
             representing the proportions of the unwell population in each stock
@@ -214,13 +221,9 @@ class SD:
             function to calculate the rate at which new patients enter the system
         """
         w = unwell_splits
-        self.initial_population = initial_population
-        unwell_pop = initial_population * unwell_proportion
-        self.P = [
-            unwell_pop * w[0], 
-            unwell_pop * w[1], 
-            unwell_pop * w[2]
-        ]
+        self.initial_population = population_function
+        unwell_pop = self.initial_population(t=0) * initial_unwell_proportion
+        self.P = [unwell_pop * w[0], unwell_pop * w[1], unwell_pop * w[2]]
         self.presenting_proportion = presenting_proportion
         self.gatekeeping_function = gatekeeping_function
         self.deterioration_rate = deterioration_function
@@ -256,6 +259,8 @@ class SD:
         if N_current == 0:
             return 0, 0, 0
 
+        current_population = self.initial_population(t=time_domain)
+
         lambdas = self.gatekeeping_function(
             stocks=all_stocks,
             population=N_current,
@@ -272,7 +277,7 @@ class SD:
         dP_threedt = (
             -lambdas[2]
             - (self.deterioration_rate(t=time_domain) * P_three)
-            + (self.incidence_rate(t=time_domain, population_size=self.initial_population))
+            + (self.incidence_rate(t=time_domain, population_size=current_population))
         )
         return dP_onedt, dP_twodt, dP_threedt
 
@@ -304,6 +309,48 @@ class SD:
             presenting_proportion=self.presenting_proportion,
             t=t,
         )
+
+
+def get_time_dependent_population_size(population_sizes, period):
+    """
+    Returns a function that provides a time-dependent population size based on
+    the given population sizes and period.
+    Parameters
+    ----------
+    population_sizes : list or int
+        A list of population sizes or a single population size.
+    period : int
+        The period over which the population sizes change.
+    Returns
+    -------
+    function
+        A function that takes time as input and returns the corresponding
+        population size.
+    """
+    if isinstance(population_sizes, (int, float)):
+        population_list = [population_sizes]
+    else:
+        population_list = list(population_sizes)
+
+    population_dict = dict(enumerate(population_list))
+    fallback = population_list[-1]
+
+    def population_function(t):
+        """
+        Returns the population size at time t.
+        Parameters
+        ----------
+        t : float
+            The time at which to get the population size.
+        Returns
+        -------
+        int
+            The population size at time t.
+        """
+        index = int(t // period)
+        return population_dict.get(index, fallback)
+
+    return population_function
 
 
 def get_time_dependent_incidence_rate(incidence_proportions, period):
@@ -345,6 +392,7 @@ def get_time_dependent_incidence_rate(incidence_proportions, period):
         index = int(t // period)
         proportion = time_dict.get(index, fallback)
         return (proportion * population_size) / period
+
     return incidence_function
 
 
@@ -386,10 +434,13 @@ def get_time_dependent_recovery_rate(recovery_proportions, period):
         index = int(t // period)
         value = time_dict.get(index, fallback)
         return (value * stock_size) / period
+
     return recovery_function
 
 
-def plot_stocks_over_time(stocks, t, ylim=None, title="Stock Size Over Time (Illustrative)", filename=None):
+def plot_stocks_over_time(
+    stocks, t, ylim=None, title="Stock Size Over Time (Illustrative)", filename=None
+):
     """
     Plots the stock sizes over time.
 
@@ -416,14 +467,21 @@ def plot_stocks_over_time(stocks, t, ylim=None, title="Stock Size Over Time (Ill
     if ylim:
         ax.set_ylim(ylim)
     ax.legend(fontsize=10)
-    ax.grid(True, which='both', linestyle='--', linewidth=0.5, color='gray')  # optional
+    ax.grid(True, which="both", linestyle="--", linewidth=0.5, color="gray")  # optional
     plt.tight_layout()
     plt.show()
     if filename:
-        plt.savefig(filename, dpi=300, bbox_inches='tight', transparent=True)
+        plt.savefig(filename, dpi=300, bbox_inches="tight", transparent=True)
 
 
-def plot_stacked_stocks_over_time(stocks, t, capacity_multiplier=0.4, ylim=None, title="Stacked Chart of SD Stocks Over Time", filename=None):
+def plot_stacked_stocks_over_time(
+    stocks,
+    t,
+    capacity_multiplier=0.4,
+    ylim=None,
+    title="Stacked Chart of SD Stocks Over Time",
+    filename=None,
+):
     """
     Plots a stacked area chart of SD stocks over time with a capacity line.
 
@@ -448,7 +506,9 @@ def plot_stacked_stocks_over_time(stocks, t, capacity_multiplier=0.4, ylim=None,
     ax.fill_between(t, P2 + P1 + P0, P1 + P0, color=colors[2], label="$P_3$ (Low)")
 
     total_pop = P0 + P1 + P2
-    ax.plot(t, total_pop * capacity_multiplier, c="black", linestyle="--", label="Threshold")
+    ax.plot(
+        t, total_pop * capacity_multiplier, c="black", linestyle="--", label="Threshold"
+    )
 
     ax.set_xlabel("Time", fontsize=12)
     ax.set_ylabel("Population in Stock", fontsize=12)
@@ -460,10 +520,16 @@ def plot_stacked_stocks_over_time(stocks, t, capacity_multiplier=0.4, ylim=None,
     plt.tight_layout()
     plt.show()
     if filename:
-        plt.savefig(filename, dpi=300, bbox_inches='tight', transparent=True)
+        plt.savefig(filename, dpi=300, bbox_inches="tight", transparent=True)
 
 
-def plot_referral_numbers_over_time(referral_numbers, t, ylim=None, title="Referral Numbers Over Time (Illustrative)", filename=None):
+def plot_referral_numbers_over_time(
+    referral_numbers,
+    t,
+    ylim=None,
+    title="Referral Numbers Over Time (Illustrative)",
+    filename=None,
+):
     """
     Plots the number of referrals over time.
     Parameters
@@ -488,9 +554,9 @@ def plot_referral_numbers_over_time(referral_numbers, t, ylim=None, title="Refer
     ax.set_ylabel("Referral Rate", fontsize=14)
     if ylim:
         ax.set_ylim(ylim)
-    ax.grid(True, which='both', linestyle='--', linewidth=0.5, color='gray')
+    ax.grid(True, which="both", linestyle="--", linewidth=0.5, color="gray")
     ax.legend(fontsize=10)
     plt.tight_layout()
     plt.show()
     if filename:
-        plt.savefig(filename, dpi=300, bbox_inches='tight', transparent=True)
+        plt.savefig(filename, dpi=300, bbox_inches="tight", transparent=True)
