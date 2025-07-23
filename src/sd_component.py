@@ -306,7 +306,7 @@ class SD:
         )
 
 
-def get_time_dependent_incidence_rates(incidence_proportions, period):
+def get_time_dependent_incidence_rate(incidence_proportions, period):
     """
     Returns a function that calculates the incidence rate based on time
     and population size, using a list of incidence proportions and a period.
@@ -324,7 +324,7 @@ def get_time_dependent_incidence_rates(incidence_proportions, period):
     """
     incidence_list = list(incidence_proportions)
     time_dict = dict(enumerate(incidence_list))
-    fallback = list(time_dict.values())[-1]
+    fallback = incidence_list[-1]
 
     def incidence_function(t, population_size):
         """
@@ -348,7 +348,7 @@ def get_time_dependent_incidence_rates(incidence_proportions, period):
     return incidence_function
 
 
-def get_time_dependent_recovery_rates(recovery_proportions, period):
+def get_time_dependent_recovery_rate(recovery_proportions, period):
     """
     Returns a function that calculates the recovery rate based on time
     and stock size, using a list of recovery proportions and a period.
@@ -366,7 +366,7 @@ def get_time_dependent_recovery_rates(recovery_proportions, period):
     """
     recovery_list = list(recovery_proportions)
     time_dict = dict(enumerate(recovery_list))
-    fallback = list(time_dict.values())[-1]
+    fallback = recovery_list[-1]
 
     def recovery_function(t, stock_size):
         """
