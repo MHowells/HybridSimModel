@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.integrate import odeint
+import pytest
 import sd_component as sd
 
 proportional_threshold = 0.4
@@ -116,3 +117,98 @@ def test_seasonal_gatekeeping():
     assert np.allclose(
         obtained_referrals_time_series[2], expected_referrals_time_series[2]
     )
+
+
+def test_get_time_dependent_population_size():
+    population_sizes = [1000, 2000, 3000]
+    durations = [10, 20, 30]
+
+    population_fn = sd.get_time_dependent_population_size(
+        population_sizes=population_sizes,
+        durations=durations
+    )
+
+    assert population_fn(0) == 1000
+    assert population_fn(9.9) == 1000
+    assert population_fn(10) == 2000
+    assert population_fn(20) == 2000
+    assert population_fn(30) == 3000
+    assert population_fn(100) == 3000
+
+    single_value_population_fn = sd.get_time_dependent_population_size(
+        population_sizes=1000
+    )
+
+    assert single_value_population_fn(0) == 1000
+    assert single_value_population_fn(9.9) == 1000
+    assert single_value_population_fn(10) == 1000
+
+    with pytest.raises(ValueError):
+        sd.get_time_dependent_population_size(
+            population_sizes=[1000, 2000],
+            durations=[10]
+        )
+
+
+def test_get_time_dependent_incidence_rate():
+    incidence_proportions = [0.01, 0.02, 0.03]
+    durations = [10, 20, 30]
+
+    incidence_fn = sd.get_time_dependent_incidence_rate(
+        incidence_proportions=incidence_proportions,
+        durations=durations
+    )
+
+    population_size = 10000
+    assert incidence_fn(0, population_size) == 100
+    assert incidence_fn(9.9, population_size) == 100
+    assert incidence_fn(10, population_size) == 200
+    assert incidence_fn(20, population_size) == 200
+    assert incidence_fn(30, population_size) == 300
+    assert incidence_fn(100, population_size) == 300
+
+    single_value_incidence_fn = sd.get_time_dependent_incidence_rate(
+        incidence_proportions=0.01
+    )
+
+    assert single_value_incidence_fn(0, population_size) == 100
+    assert single_value_incidence_fn(9.9, population_size) == 100
+    assert single_value_incidence_fn(10, population_size) == 100
+
+    with pytest.raises(ValueError):
+        sd.get_time_dependent_incidence_rate(
+            incidence_proportions=[0.01, 0.02],
+            durations=[10]
+        )
+
+
+def test_get_time_dependent_recovery_rate():
+    recovery_proportions = [0.01, 0.02, 0.03]
+    durations = [10, 20, 30]
+
+    recovery_fn = sd.get_time_dependent_recovery_rate(
+        recovery_proportions=recovery_proportions,
+        durations=durations
+    )
+
+    stock_size = 10000
+    assert recovery_fn(0, stock_size) == 100
+    assert recovery_fn(9.9, stock_size) == 100
+    assert recovery_fn(10, stock_size) == 200
+    assert recovery_fn(20, stock_size) == 200
+    assert recovery_fn(30, stock_size) == 300
+    assert recovery_fn(100, stock_size) == 300
+
+    single_value_recovery_fn = sd.get_time_dependent_recovery_rate(
+        recovery_proportions=0.01
+    )
+
+    assert single_value_recovery_fn(0, stock_size) == 100
+    assert single_value_recovery_fn(9.9, stock_size) == 100
+    assert single_value_recovery_fn(10, stock_size) == 100
+
+    with pytest.raises(ValueError):
+        sd.get_time_dependent_recovery_rate(
+            recovery_proportions=[0.01, 0.02],
+            durations=[10]
+        )
