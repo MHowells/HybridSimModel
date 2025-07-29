@@ -311,129 +311,165 @@ class SD:
         )
 
 
-def get_time_dependent_population_size(population_sizes, period):
+def get_time_dependent_population_size(population_sizes, durations):
     """
     Returns a function that provides a time-dependent population size based on
-    the given population sizes and period.
+    custom durations and population sizes.
+
     Parameters
     ----------
-    population_sizes : list or int
-        A list of population sizes or a single population size.
-    period : int
-        The period over which the population sizes change.
+    population_sizes : list of int/float
+        A list of population sizes.
+    durations : list of int/float
+        A list of time durations (in days, for example) that each population size lasts.
+
     Returns
     -------
     function
-        A function that takes time as input and returns the corresponding
-        population size.
+        A function that takes time t and returns the corresponding population size.
     """
     if isinstance(population_sizes, (int, float)):
-        population_list = [population_sizes]
-    else:
-        population_list = list(population_sizes)
+        population_sizes = [population_sizes]
+    if isinstance(durations, (int, float)):
+        durations = [durations]
 
-    population_dict = dict(enumerate(population_list))
-    fallback = population_list[-1]
+    if len(population_sizes) != len(durations):
+        raise ValueError("The lengths of population_sizes and durations must match.")
+
+    change_points = [0]
+    for d in durations:
+        change_points.append(change_points[-1] + d)
 
     def population_function(t):
         """
         Returns the population size at time t.
+
         Parameters
         ----------
         t : float
             The time at which to get the population size.
+
         Returns
         -------
-        int
+        int or float
             The population size at time t.
         """
-        index = int(t // period)
-        return population_dict.get(index, fallback)
+        for i in range(len(durations)):
+            if change_points[i] <= t < change_points[i + 1]:
+                return population_sizes[i]
+        return population_sizes[-1]
 
     return population_function
 
 
-def get_time_dependent_incidence_rate(incidence_proportions, period):
+def get_time_dependent_incidence_rate(incidence_proportions, durations):
     """
     Returns a function that calculates the incidence rate based on time
-    and population size, using a list of incidence proportions and a period.
+    and population size, using a list of incidence proportions and durations.
+
     Parameters
     ----------
-    incidence_proportions : list of floats
-        List of incidence proportions for each time period.
-    period : int
-        The period over which the incidence rates are defined (in days).
+    incidence_proportions : list of float
+        Incidence proportions (e.g., cases per person per period).
+    durations : list of int/float
+        Durations for which each incidence proportion applies.
+
     Returns
     -------
     function
-        A function that takes time (t) and population size, and returns the
-        incidence rate for that time.
+        A function that takes time t and population size, and returns
+        the incidence rate at time t.
     """
-    incidence_list = list(incidence_proportions)
-    time_dict = dict(enumerate(incidence_list))
-    fallback = incidence_list[-1]
+    if isinstance(incidence_proportions, (int, float)):
+        incidence_proportions = [incidence_proportions]
+    if isinstance(durations, (int, float)):
+        durations = [durations]
+
+    if len(incidence_proportions) != len(durations):
+        raise ValueError("The lengths of incidence_proportions and durations must match.")
+
+    change_points = [0]
+    for d in durations:
+        change_points.append(change_points[-1] + d)
 
     def incidence_function(t, population_size):
         """
-        Calculates the incidence rate based on time and population size.
+        Calculates the incidence rate at time t given a population size.
+
         Parameters
         ----------
         t : float
-            The time at which to calculate the incidence rate.
-        population_size : int
-            The population size at the time of calculation.
+            The time at which to calculate the incidence.
+        population_size : int or float
+            The population size at time t.
+
         Returns
         -------
         float
-            The incidence rate for the given time and population size.
+            The incidence rate at time t.
         """
         if population_size == 0:
-            return 0
-        index = int(t // period)
-        proportion = time_dict.get(index, fallback)
-        return (proportion * population_size) / period
+            return 0.0
+        for i in range(len(durations)):
+            if change_points[i] <= t < change_points[i + 1]:
+                return (incidence_proportions[i] * population_size)
+        return (incidence_proportions[-1] * population_size)
 
     return incidence_function
 
 
-def get_time_dependent_recovery_rate(recovery_proportions, period):
+def get_time_dependent_recovery_rate(recovery_proportions, durations):
     """
     Returns a function that calculates the recovery rate based on time
-    and stock size, using a list of recovery proportions and a period.
+    and stock size, using a list of recovery proportions and durations.
+
     Parameters
     ----------
-    recovery_proportions : list of floats
-        List of recovery proportions for each time period.
-    period : int
-        The period over which the recovery rates are defined (in days).
+    recovery_proportions : list of float
+        Recovery proportions (e.g., proportion recovered per period).
+    durations : list of int/float
+        Durations for which each recovery proportion applies.
+
     Returns
     -------
     function
-        A function that takes time (t) and stock size, and returns the
-        recovery rate for that time.
+        A function that takes time t and stock size, and returns
+        the recovery rate at time t.
     """
-    recovery_list = list(recovery_proportions)
-    time_dict = dict(enumerate(recovery_list))
-    fallback = recovery_list[-1]
+    if isinstance(recovery_proportions, (int, float)):
+        recovery_proportions = [recovery_proportions]
+    if isinstance(durations, (int, float)):
+        durations = [durations]
+
+    if len(recovery_proportions) != len(durations):
+        raise ValueError("The lengths of recovery_proportions and durations must match.")
+
+    change_points = [0]
+    for d in durations:
+        change_points.append(change_points[-1] + d)
 
     def recovery_function(t, stock_size):
         """
         Calculates the recovery rate based on time and stock size.
+
         Parameters
+        ----------
         t : float
             The time at which to calculate the recovery rate.
-        stock_size : int
-            The stock size at the time of calculation.
+        stock_size : int or float
+            The stock size at time t.
+
         Returns
         -------
         float
-            The recovery rate for the given time and stock size.
+            The recovery rate at time t.
         """
         if stock_size == 0:
-            return 0
-        index = int(t // period)
-        value = time_dict.get(index, fallback)
-        return (value * stock_size) / period
+            return 0.0
+        for i in range(len(durations)):
+            if change_points[i] <= t < change_points[i + 1]:
+                return recovery_proportions[i] * stock_size
+        return recovery_proportions[-1] * stock_size
 
     return recovery_function
 
