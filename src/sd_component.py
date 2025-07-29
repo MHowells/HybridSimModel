@@ -311,7 +311,7 @@ class SD:
         )
 
 
-def get_time_dependent_population_size(population_sizes, durations):
+def get_time_dependent_population_size(population_sizes, durations=np.NaN):
     """
     Returns a function that provides a time-dependent population size based on
     custom durations and population sizes.
@@ -362,7 +362,7 @@ def get_time_dependent_population_size(population_sizes, durations):
     return population_function
 
 
-def get_time_dependent_incidence_rate(incidence_proportions, durations):
+def get_time_dependent_incidence_rate(incidence_proportions, durations=np.NaN):
     """
     Returns a function that calculates the incidence rate based on time
     and population size, using a list of incidence proportions and durations.
@@ -418,7 +418,7 @@ def get_time_dependent_incidence_rate(incidence_proportions, durations):
     return incidence_function
 
 
-def get_time_dependent_recovery_rate(recovery_proportions, durations):
+def get_time_dependent_recovery_rate(recovery_proportions, durations=np.NaN):
     """
     Returns a function that calculates the recovery rate based on time
     and stock size, using a list of recovery proportions and durations.
