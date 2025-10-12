@@ -163,7 +163,7 @@ class PDFARouting(ciw.routing.NodeRouting):
                 next_node
                 + (len(self.activity_dict) * self.subspec_dict[ind.customer_class])
             ]
-        
+
 
 def get_arrival_distributions(
     nodes,
@@ -364,78 +364,6 @@ def get_class_change_matrices(
     return class_mat
 
 
-def get_network(
-    alphabets,
-    subspecialties,
-    subspecialty_service_dists,
-    emergency_nodes,
-    subspecialty_class,
-    subspec_probs_low,
-    subspec_probs_medium,
-    subspec_probs_high,
-    gp_arrival_rates=[None, None, None],
-    other_arrival_rates=[None, None, None],
-):
-    """
-    Constructs a Ciw network object based on the provided parameters.
-    Parameters
-    ----------
-    alphabets : list of lists
-        A list where each element is a list of activity letters for the corresponding
-        subspecialty and severity level.
-    subspecialties : list
-        A list of subspecialty names.
-    subspecialty_service_dists : list of lists
-        A list where each element is a list of service time distributions for the
-        corresponding subspecialty.
-    emergency_nodes : list
-        A list of nodes that should have infinite servers (these correspond to the
-        emergency activities in the PDFA alphabet).
-    subspecialty_class : ciw.routing.NodeRouting
-        A routing strategy for the subspecialty customer classes.
-    subspec_probs_low : list
-        A list of probabilities for each subspecialty given a Low severity level.
-    subspec_probs_medium : list
-        A list of probabilities for each subspecialty given a Medium severity level.
-    subspec_probs_high : list
-        A list of probabilities for each subspecialty given a High severity level.
-    gp_arrival_rates : list, optional
-        A list of arrival rates for the GP node for Low, Medium, and High severity
-        levels (default is [None, None, None]).
-    other_arrival_rates : list, optional
-        A list of arrival rates for the other node for Low, Medium, and High severity
-        levels (default is [None, None, None]).
-    Returns
-    -------
-    ciw.Network
-        A Ciw network object representing the discrete-event simulation model.
-    """
-    nodes = get_list_of_nodes(alphabets, subspecialties)
-    arrivals = get_arrival_distributions(
-        nodes, subspecialties, gp_arrival_rates, other_arrival_rates
-    )
-    services = get_service_distributions(
-        nodes, subspecialties, subspecialty_service_dists
-    )
-    servers = get_servers(nodes, emergency_nodes)
-    routes = get_routing(nodes, subspecialties, subspecialty_class)
-    class_changes = get_class_change_matrices(
-        nodes,
-        subspecialties,
-        subspec_probs_low,
-        subspec_probs_medium,
-        subspec_probs_high,
-    )
-    N = ciw.create_network(
-        arrival_distributions=arrivals,
-        service_distributions=services,
-        number_of_servers=servers,
-        routing=routes,
-        class_change_matrices=class_changes,
-    )
-    return N
-
-
 class PreOpExpiryDist(ciw.dists.Distribution):
     """
     A custom distribution to model the reneging time for patients waiting for
@@ -455,7 +383,10 @@ class PreOpExpiryDist(ciw.dists.Distribution):
     elective_surgery_letter : str
         The letter representing the elective surgery activity.
     """
-    def __init__(self, activity_dict, subspec_dict, pre_op_letter, elective_surgery_letter):
+
+    def __init__(
+        self, activity_dict, subspec_dict, pre_op_letter, elective_surgery_letter
+    ):
         """
         Initializes the PreOpExpiryDist instance with the activity dictionary,
         subspecialty dictionary, pre-operative assessment letter, and elective
@@ -492,11 +423,21 @@ class PreOpExpiryDist(ciw.dists.Distribution):
             The reneging time for the individual. If the individual has not had
             a pre-operative assessment, returns infinity (indicating no reneging).
         """
-        pre_op_node = self.activity_dict[self.pre_op_letter] + (len(self.activity_dict) * self.subspec_dict[ind.customer_class])
-        surgery_node = self.activity_dict[self.elective_surgery_letter] + (len(self.activity_dict) * self.subspec_dict[ind.customer_class])
-        pre_op_appts = [i.service_end_date for i in ind.data_records if i.node == pre_op_node]
+        pre_op_node = self.activity_dict[self.pre_op_letter] + (
+            len(self.activity_dict) * self.subspec_dict[ind.customer_class]
+        )
+        surgery_node = self.activity_dict[self.elective_surgery_letter] + (
+            len(self.activity_dict) * self.subspec_dict[ind.customer_class]
+        )
+        pre_op_appts = [
+            i.service_end_date for i in ind.data_records if i.node == pre_op_node
+        ]
         print(ind, pre_op_appts)
-        surgical_appts = [i.service_end_date for i in ind.data_records if i.node in [surgery_node] and str(i.service_end_date) != 'nan']
+        surgical_appts = [
+            i.service_end_date
+            for i in ind.data_records
+            if i.node in [surgery_node] and str(i.service_end_date) != "nan"
+        ]
         print(surgical_appts)
         if len(pre_op_appts) > 0:
             last_pre_op = pre_op_appts[-1]
@@ -511,7 +452,7 @@ class PreOpExpiryDist(ciw.dists.Distribution):
                 return 182 - (t - last_pre_op)
         else:
             return float("inf")
-        
+
 
 class JockeyRouting(PDFARouting):
     """
@@ -523,7 +464,10 @@ class JockeyRouting(PDFARouting):
     pre_op_letter : str
         The letter representing the pre-operative assessment activity.
     """
-    def __init__(self, pdfa_matrix, alphabet, activity_dict, subspec_dict, pre_op_letter):
+
+    def __init__(
+        self, pdfa_matrix, alphabet, activity_dict, subspec_dict, pre_op_letter
+    ):
         """
         Initializes the JockeyRouting instance with a PDFA matrix, an alphabet,
         an activity dictionary, a subspecialty dictionary, and the pre-operative
@@ -543,7 +487,7 @@ class JockeyRouting(PDFARouting):
         """
         self.pre_op_letter = pre_op_letter
         super().__init__(pdfa_matrix, alphabet, activity_dict, subspec_dict)
-        
+
     def next_node_for_jockeying(self, ind):
         """
         Determines the pre-operative assessment node for an individual.
@@ -556,5 +500,113 @@ class JockeyRouting(PDFARouting):
         ciw.Node
             The pre-operative assessment node in the simulation for the individual.
         """
-        pre_op_node = self.activity_dict[self.pre_op_letter] + (len(self.activity_dict) * self.subspec_dict[ind.customer_class])
+        pre_op_node = self.activity_dict[self.pre_op_letter] + (
+            len(self.activity_dict) * self.subspec_dict[ind.customer_class]
+        )
         return self.simulation.nodes[pre_op_node]
+
+
+def get_reneging_time_distributions(nodes, subspecs, RenegingClass):
+    """
+    Constructs a dictionary of reneging time distributions for each customer class.
+    Parameters
+    ----------
+    nodes : list
+        List of node names in the network.
+    subspecs : list
+        List of subspecialty names.
+    RenegingClass : ciw.dists.Distribution
+        A custom distribution class for modeling reneging times.
+    Returns
+    -------
+    dict
+        A dictionary mapping each customer class to its list of reneging time distributions.
+    """
+    list_of_reneging_dists = [None, None] + [RenegingClass] * (len(nodes) - 2)
+    reneging_dict = {
+        "Low": list_of_reneging_dists,
+        "Medium": list_of_reneging_dists,
+        "High": list_of_reneging_dists,
+    }
+    for subspec in subspecs:
+        reneging_dict[subspec] = list_of_reneging_dists
+    return reneging_dict
+
+
+def get_network(
+    alphabets,
+    subspecialties,
+    subspecialty_service_dists,
+    emergency_nodes,
+    subspecialty_class,
+    reneging_class,
+    subspec_probs_low,
+    subspec_probs_medium,
+    subspec_probs_high,
+    gp_arrival_rates=[None, None, None],
+    other_arrival_rates=[None, None, None],
+):
+    """
+    Constructs a Ciw network object based on the provided parameters.
+    Parameters
+    ----------
+    alphabets : list of lists
+        A list where each element is a list of activity letters for the corresponding
+        subspecialty and severity level.
+    subspecialties : list
+        A list of subspecialty names.
+    subspecialty_service_dists : list of lists
+        A list where each element is a list of service time distributions for the
+        corresponding subspecialty.
+    emergency_nodes : list
+        A list of nodes that should have infinite servers (these correspond to the
+        emergency activities in the PDFA alphabet).
+    subspecialty_class : ciw.routing.NodeRouting
+        A routing strategy for the subspecialty customer classes.
+    reneging_class : ciw.dists.Distribution
+        A custom distribution class for modeling reneging times.
+    subspec_probs_low : list
+        A list of probabilities for each subspecialty given a Low severity level.
+    subspec_probs_medium : list
+        A list of probabilities for each subspecialty given a Medium severity level.
+    subspec_probs_high : list
+        A list of probabilities for each subspecialty given a High severity level.
+    gp_arrival_rates : list, optional
+        A list of arrival rates for the GP node for Low, Medium, and High severity
+        levels (default is [None, None, None]).
+    other_arrival_rates : list, optional
+        A list of arrival rates for the other node for Low, Medium, and High severity
+        levels (default is [None, None, None]).
+    Returns
+    -------
+    ciw.Network
+        A Ciw network object representing the discrete-event simulation model.
+    """
+    nodes = get_list_of_nodes(alphabets, subspecialties)
+    arrivals = get_arrival_distributions(
+        nodes, subspecialties, gp_arrival_rates, other_arrival_rates
+    )
+    services = get_service_distributions(
+        nodes, subspecialties, subspecialty_service_dists
+    )
+    servers = get_servers(nodes, emergency_nodes)
+    routes = get_routing(nodes, subspecialties, subspecialty_class)
+    class_changes = get_class_change_matrices(
+        nodes,
+        subspecialties,
+        subspec_probs_low,
+        subspec_probs_medium,
+        subspec_probs_high,
+    )
+    reneging_dists = get_reneging_time_distributions(
+        nodes, subspecialties, reneging_class
+    )
+    N = ciw.create_network(
+        arrival_distributions=arrivals,
+        service_distributions=services,
+        number_of_servers=servers,
+        routing=routes,
+        class_change_matrices=class_changes,
+        reneging_time_distributions=reneging_dists,
+    )
+    return N
