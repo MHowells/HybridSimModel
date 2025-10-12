@@ -434,3 +434,127 @@ def get_network(
         class_change_matrices=class_changes,
     )
     return N
+
+
+class PreOpExpiryDist(ciw.dists.Distribution):
+    """
+    A custom distribution to model the reneging time for patients waiting for
+    elective surgery after a pre-operative assessment. The time is calculated
+    based on the time since the last pre-operative assessment and the time of
+    the last scheduled surgery. If the patient has not had a pre-operative
+    assessment, they will not renege.
+
+    Attributes
+    ----------
+    activity_dict : dict
+        A dictionary mapping activity letters to their corresponding indices.
+    subspec_dict : dict
+        A dictionary mapping subspecialties to their corresponding indices.
+    pre_op_letter : str
+        The letter representing the pre-operative assessment activity.
+    elective_surgery_letter : str
+        The letter representing the elective surgery activity.
+    """
+    def __init__(self, activity_dict, subspec_dict, pre_op_letter, elective_surgery_letter):
+        """
+        Initializes the PreOpExpiryDist instance with the activity dictionary,
+        subspecialty dictionary, pre-operative assessment letter, and elective
+        surgery letter.
+        Parameters
+        ----------
+        activity_dict : dict
+            A dictionary mapping activity letters to their corresponding indices.
+        subspec_dict : dict
+            A dictionary mapping subspecialties to their corresponding indices.
+        pre_op_letter : str
+            The letter representing the pre-operative assessment activity.
+        elective_surgery_letter : str
+            The letter representing the elective surgery activity.
+        """
+        self.activity_dict = activity_dict
+        self.subspec_dict = subspec_dict
+        self.pre_op_letter = pre_op_letter
+        self.elective_surgery_letter = elective_surgery_letter
+
+    def sample(self, t, ind=None):
+        """
+        Samples the reneging time for an individual based on their history of
+        pre-operative assessments and scheduled surgeries.
+        Parameters
+        ----------
+        t : float
+            The current time in the simulation.
+        ind : ciw.Individual
+            The individual for whom the reneging time is to be calculated.
+        Returns
+        -------
+        float
+            The reneging time for the individual. If the individual has not had
+            a pre-operative assessment, returns infinity (indicating no reneging).
+        """
+        pre_op_node = self.activity_dict[self.pre_op_letter] + (len(self.activity_dict) * self.subspec_dict[ind.customer_class])
+        surgery_node = self.activity_dict[self.elective_surgery_letter] + (len(self.activity_dict) * self.subspec_dict[ind.customer_class])
+        pre_op_appts = [i.service_end_date for i in ind.data_records if i.node == pre_op_node]
+        print(ind, pre_op_appts)
+        surgical_appts = [i.service_end_date for i in ind.data_records if i.node in [surgery_node] and str(i.service_end_date) != 'nan']
+        print(surgical_appts)
+        if len(pre_op_appts) > 0:
+            last_pre_op = pre_op_appts[-1]
+            if len(surgical_appts) > 0:
+                print("Yes")
+                last_surgical_op = surgical_appts[-1]
+                if last_pre_op > last_surgical_op:
+                    return 182 - (t - last_pre_op)
+                else:
+                    return float("inf")
+            else:
+                return 182 - (t - last_pre_op)
+        else:
+            return float("inf")
+        
+
+class JockeyRouting(PDFARouting):
+    """
+    A subclass of PDFARouting to implement jockeying behaviour in a Ciw
+    discrete-event simulation. This class overrides the `next_node` method to
+    provide custom routing logic for individuals.
+    Attributes
+    ----------
+    pre_op_letter : str
+        The letter representing the pre-operative assessment activity.
+    """
+    def __init__(self, pdfa_matrix, alphabet, activity_dict, subspec_dict, pre_op_letter):
+        """
+        Initializes the JockeyRouting instance with a PDFA matrix, an alphabet,
+        an activity dictionary, a subspecialty dictionary, and the pre-operative
+        assessment letter.
+        Parameters
+        ----------
+        pdfa_matrix : np.ndarray
+            A 3D numpy array representing the PDFA transition probabilities.
+        alphabet : list
+            A list of activity letters corresponding to the PDFA transitions.
+        activity_dict : dict
+            A dictionary mapping activity letters to their corresponding indices.
+        subspec_dict : dict
+            A dictionary mapping subspecialties to their corresponding indices.
+        pre_op_letter : str
+            The letter representing the pre-operative assessment activity.
+        """
+        self.pre_op_letter = pre_op_letter
+        super().__init__(pdfa_matrix, alphabet, activity_dict, subspec_dict)
+        
+    def next_node_for_jockeying(self, ind):
+        """
+        Determines the pre-operative assessment node for an individual.
+        Parameters
+        ----------
+        ind : ciw.Individual
+            The individual for whom the pre-operative assessment node is to be determined.
+        Returns
+        -------
+        ciw.Node
+            The pre-operative assessment node in the simulation for the individual.
+        """
+        pre_op_node = self.activity_dict[self.pre_op_letter] + (len(self.activity_dict) * self.subspec_dict[ind.customer_class])
+        return self.simulation.nodes[pre_op_node]
