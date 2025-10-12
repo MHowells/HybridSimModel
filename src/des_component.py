@@ -4,10 +4,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 
-def make_activity_dictionaries(alphabet, start_value=2):
+def get_activity_dictionaries(alphabet, start_value=2):
     """
-    Converts a list of activity letters into a dictionaries. One mapping each 
-    letter to an integer starting from `start_value`, the other mapping the 
+    Converts a list of activity letters into a dictionaries. One mapping each
+    letter to an integer starting from `start_value`, the other mapping the
     integers back to the letters.
 
     Parameters
@@ -24,10 +24,30 @@ def make_activity_dictionaries(alphabet, start_value=2):
         - The first dictionary maps each letter to an integer.
         - The second dictionary maps each integer back to its corresponding letter.
     """
-    activity_dict = {letter: idx for idx, letter in enumerate(alphabet, start=start_value)}
+    activity_dict = {
+        letter: idx for idx, letter in enumerate(alphabet, start=start_value)
+    }
     inverted_dict = {v: k for k, v in activity_dict.items()}
-    inverted_dict[1] = ''
+    inverted_dict[1] = ""
     return activity_dict, inverted_dict
+
+
+def get_list_of_nodes(alphabets, subspecialties):
+    """
+    Generates a list of all nodes in the DES component by their PDFA letter.
+    Parameters
+    ----------
+    alphabets : list of lists
+        A list containing the alphabets for each subspecialty and severity level.
+    subspecialties : list
+        A list of subspecialties (strings).
+    Returns
+    -------
+    list
+        A list of all nodes in the DES component by their PDFA letter.
+    """
+    nodes = ["*", "*"] + sorted(set().union(*alphabets)) * len(subspecialties)
+    return nodes
 
 
 class PDFARouting(ciw.routing.NodeRouting):
