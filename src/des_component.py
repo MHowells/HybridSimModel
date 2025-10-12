@@ -34,7 +34,7 @@ class PDFARouting(ciw.routing.NodeRouting):
     """
     A class to implement PDFA-based routing in a Ciw discrete-event simulation.
     This class inherits from `ciw.routing.NodeRouting` and implements the
-    `next_node` method to determine the next node based on a PDFA matrix and 
+    `next_node` method to determine the next node based on a PDFA matrix and
     an alphabet of activity letters.
 
     Attributes
@@ -45,8 +45,11 @@ class PDFARouting(ciw.routing.NodeRouting):
         A list of activity letters corresponding to the PDFA transitions.
     activity_dict : dict
         A dictionary mapping activity letters to their corresponding indices.
+    subspec_dict : dict
+        A dictionary mapping subspecialties to their corresponding indices.
     """
-    def __init__(self, pdfa_matrix, alphabet, activity_dict):
+
+    def __init__(self, pdfa_matrices, alphabets, activity_dict):
         """
         Initializes the PDFARouting instance with a PDFA matrix, an alphabet,
         and a dictionary mapping activity letters to their indices.
@@ -58,10 +61,12 @@ class PDFARouting(ciw.routing.NodeRouting):
             A list of activity letters corresponding to the PDFA transitions.
         activity_dict : dict
             A dictionary mapping activity letters to their corresponding indices.
+        subspec_dict : dict
+            A dictionary mapping subspecialties to their corresponding indices.
         """
         super().__init__()
-        self.p_matrix = pdfa_matrix
-        self.alphabet = alphabet
+        self.p_matrices = pdfa_matrices
+        self.alphabets = alphabets
         self.activity_dict = activity_dict
 
     def next_node(self, ind):
@@ -77,23 +82,45 @@ class PDFARouting(ciw.routing.NodeRouting):
         ciw.Node
             The next node in the simulation for the individual.
         """
+        if not hasattr(ind, "level"):
+            if ind.original_class == "Low":
+                ind.level = "Low"
+            elif ind.original_class == "Medium":
+                ind.level = "Medium"
+            elif ind.original_class == "High":
+                ind.level = "High"
+            else:
+                ind.level = ciw.dists.Pmf(
+                    values=["Low", "Medium", "High"], probs=[0.5, 0.25, 0.25]
+                ).sample()
+
         if not hasattr(ind, "route_position"):
-            ind.route_position = 1 # Or initial state if different
+            ind.route_position = 1  # Or initial state if different
+
+        if ind.level == "Low":
+            p_matrix = self.p_matrices[0 + (3 * self.subspec_dict[ind.customer_class])]
+            alphabet = self.alphabets[0 + (3 * self.subspec_dict[ind.customer_class])]
+        elif ind.level == "Medium":
+            p_matrix = self.p_matrices[1 + (3 * self.subspec_dict[ind.customer_class])]
+            alphabet = self.alphabets[1 + (3 * self.subspec_dict[ind.customer_class])]
+        else:
+            p_matrix = self.p_matrices[2 + (3 * self.subspec_dict[ind.customer_class])]
+            alphabet = self.alphabets[2 + (3 * self.subspec_dict[ind.customer_class])]
 
         leaving_row = ind.route_position
         p_values = []
-        possible_next_state = [] 
+        possible_next_state = []
         possible_next_activity = []
 
-        for letter in range(len(self.alphabet)):
-            trans_probs = self.p_matrix[letter, leaving_row, :]
+        for letter in range(len(alphabet)):
+            trans_probs = p_matrix[letter, leaving_row, :]
             if trans_probs.sum() > 0:
                 p_values.append(trans_probs.sum())
                 possible_next_state.append(np.where(trans_probs > 0)[0][0])
                 possible_next_activity.append(letter)
 
         if len(p_values) > 0:
-            final_prob = 1 - sum(p_values)
+            final_prob = max(0, 1 - sum(p_values))
         else:
             final_prob = 1
         if final_prob > 0:
@@ -101,13 +128,17 @@ class PDFARouting(ciw.routing.NodeRouting):
             possible_next_state.append("tau")
             possible_next_activity.append(-1)
 
-        next_activity = np.random.choice(a=possible_next_activity, p=p_values)
+        rng = np.random.default_rng()
+        next_activity = rng.choice(a=possible_next_activity, p=p_values)
         next_state = possible_next_state[possible_next_activity.index(next_activity)]
 
         if next_activity == -1:
             ind.route_position = -1
             return self.simulation.nodes[-1]
         else:
-            next_node = self.activity_dict[self.alphabet[next_activity]]
+            next_node = self.activity_dict[alphabet[next_activity]]
             ind.route_position = next_state
-            return self.simulation.nodes[next_node]
+            return self.simulation.nodes[
+                next_node
+                + (len(self.activity_dict) * self.subspec_dict[ind.customer_class])
+            ]
