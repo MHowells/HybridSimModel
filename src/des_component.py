@@ -69,7 +69,7 @@ class PDFARouting(ciw.routing.NodeRouting):
         A dictionary mapping subspecialties to their corresponding indices.
     """
 
-    def __init__(self, pdfa_matrices, alphabets, activity_dict, subspec_dict):
+    def __init__(self, pdfa_matrices, alphabets, activity_dict, subspec_dict, pre_op_letter, elective_surgery_letter):
         """
         Initializes the PDFARouting instance with a PDFA matrix, an alphabet,
         and a dictionary mapping activity letters to their indices.
@@ -83,12 +83,18 @@ class PDFARouting(ciw.routing.NodeRouting):
             A dictionary mapping activity letters to their corresponding indices.
         subspec_dict : dict
             A dictionary mapping subspecialties to their corresponding indices.
+        pre_op_letter : str
+            The letter representing the pre-operative assessment activity.
+        elective_surgery_letter : str
+            The letter representing the elective surgery activity.
         """
         super().__init__()
         self.p_matrices = pdfa_matrices
         self.alphabets = alphabets
         self.activity_dict = activity_dict
         self.subspec_dict = subspec_dict
+        self.pre_op_letter = pre_op_letter
+        self.elective_surgery_letter = elective_surgery_letter
 
     def next_node(self, ind):
         """
@@ -118,6 +124,15 @@ class PDFARouting(ciw.routing.NodeRouting):
         if not hasattr(ind, "route_position"):
             ind.route_position = 1  # Or initial state if different
 
+        if not hasattr(ind, "pre_op"):
+            ind.pre_op = False
+
+        if ind.node == self.activity_dict[self.pre_op_letter] + (len(self.activity_dict) * self.subspec_dict[ind.customer_class]):
+            ind.pre_op = True
+
+        if ind.node == self.activity_dict[self.elective_surgery_letter] + (len(self.activity_dict) * self.subspec_dict[ind.customer_class]):
+            ind.pre_op = False
+
         if ind.level == "Low":
             p_matrix = self.p_matrices[0 + (3 * self.subspec_dict[ind.customer_class])]
             alphabet = self.alphabets[0 + (3 * self.subspec_dict[ind.customer_class])]
@@ -139,6 +154,20 @@ class PDFARouting(ciw.routing.NodeRouting):
                 p_values.append(trans_probs.sum())
                 possible_next_state.append(np.where(trans_probs > 0)[0][0])
                 possible_next_activity.append(letter)
+
+        if ind.pre_op and alphabet.index(self.pre_op_letter) in possible_next_activity:
+            combined = list(zip(p_values, possible_next_state, possible_next_activity))
+            filtered = [(p, s, a) for p, s, a in combined if a != alphabet.index(self.pre_op_letter)]
+            if len(filtered) > 0:
+                p_values, possible_next_state, possible_next_activity = zip(*filtered)
+                total = sum(p_values)
+                p_values = [p / total for p in p_values]
+                possible_next_state = list(possible_next_state)
+                possible_next_activity = list(possible_next_activity)
+            else:
+                p_values = []
+                possible_next_state = []
+                possible_next_activity = []
 
         if len(p_values) > 0:
             final_prob = max(0, 1 - sum(p_values))
