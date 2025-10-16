@@ -461,17 +461,14 @@ class PreOpExpiryDist(ciw.dists.Distribution):
         pre_op_appts = [
             i.service_end_date for i in ind.data_records if i.node == pre_op_node
         ]
-        print(ind, pre_op_appts)
         surgical_appts = [
             i.service_end_date
             for i in ind.data_records
             if i.node in [surgery_node] and str(i.service_end_date) != "nan"
         ]
-        print(surgical_appts)
         if len(pre_op_appts) > 0:
             last_pre_op = pre_op_appts[-1]
             if len(surgical_appts) > 0:
-                print("Yes")
                 last_surgical_op = surgical_appts[-1]
                 if last_pre_op > last_surgical_op:
                     return 182 - (t - last_pre_op)
