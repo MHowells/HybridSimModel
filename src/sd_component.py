@@ -328,6 +328,61 @@ def seasonal_gatekeeping(baseline=8, amplitude=2, period=365, phase_shift=0):
     return gatekeeping_function
 
 
+def proportional_access_gatekeeping(threshold):
+    """
+    Refers the same proportion of each severity stock that presents to primary 
+    care.
+
+    Parameters
+    ----------
+    threshold : float in [0, 1]
+        Proportion of the total presenting demand that can be referred at each
+        time step.
+    Returns
+    -------
+    function
+        Function to calculate lambda values for each stock.
+    """
+    def gatekeeping_function(stocks, population, presenting_proportion, t):
+        """
+        Calculate referral flows under a proportional access policy, where the
+        same proportion of each severity stock that presents to primary care is
+        referred, up to a maximum total referral capacity.
+
+        Parameters
+        ----------
+        stocks : list/array of scalars or arrays
+            Stock levels for each severity group, ordered by priority
+            (e.g. high, medium, low).
+        population : float or array
+            Included for compatibility with the SD framework, but unused.
+        presenting_proportion : float in [0, 1]
+            Proportion of each stock presenting to primary care.
+        t : float or array
+            Time input (unused here, but included for compatibility).
+        Returns
+        -------
+        np.ndarray
+            Referral flows for each stock, either as:
+            - shape (n_groups,) for scalar input
+            - shape (n_groups, T) for time-series input
+        """
+        stocks = np.array(stocks, dtype=float)
+
+        if stocks.ndim == 1:
+            lambdas = presenting_proportion * threshold * stocks
+            return lambdas
+
+        elif stocks.ndim == 2:
+            lambdas = presenting_proportion * threshold * stocks
+            return lambdas
+
+        else:
+            raise ValueError("stocks must be a 1D or 2D array-like structure.")
+
+    return gatekeeping_function
+
+
 class SD:
     """
     A class to hold the SD component.
