@@ -61,6 +61,135 @@ def test_proportional_gatekeeping():
     )
 
 
+def test_strict_priority_gatekeeping_returns_callable():
+    gatekeeping = sd.strict_priority_gatekeeping(threshold=0.5)
+    assert callable(gatekeeping)
+
+
+def test_strict_priority_gatekeeping_scalar_exact_fill():
+    stocks = np.array([20.0, 30.0, 50.0])
+    presenting_proportion = 0.4
+    threshold = 0.5
+
+    gatekeeping = sd.strict_priority_gatekeeping(threshold)
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected = np.array([8.0, 12.0, 0.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_strict_priority_gatekeeping_scalar_partial_medium():
+    stocks = np.array([40.0, 40.0, 20.0])
+    presenting_proportion = 0.4
+    threshold = 0.5
+
+    gatekeeping = sd.strict_priority_gatekeeping(threshold)
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected = np.array([16.0, 4.0, 0.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_strict_priority_gatekeeping_scalar_zero_threshold():
+    stocks = np.array([20.0, 30.0, 50.0])
+    presenting_proportion = 0.4
+    threshold = 0.0
+
+    gatekeeping = sd.strict_priority_gatekeeping(threshold)
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected = np.array([0.0, 0.0, 0.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_strict_priority_gatekeeping_scalar_full_threshold():
+    stocks = np.array([20.0, 30.0, 50.0])
+    presenting_proportion = 0.4
+    threshold = 1.0
+
+    gatekeeping = sd.strict_priority_gatekeeping(threshold)
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected = np.array([8.0, 12.0, 20.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_strict_priority_gatekeeping_scalar_all_capacity_to_first_group():
+    stocks = np.array([100.0, 20.0, 10.0])
+    presenting_proportion = 0.5
+    threshold = 0.2
+
+    gatekeeping = sd.strict_priority_gatekeeping(threshold)
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected = np.array([13.0, 0.0, 0.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_strict_priority_gatekeeping_time_series_case():
+    stocks = np.array([
+        [20.0, 20.0, 20.0],
+        [30.0, 25.0, 20.0],
+        [50.0, 55.0, 60.0],
+    ])
+    presenting_proportion = 0.4
+
+    gatekeeping = sd.strict_priority_gatekeeping(threshold=0.5)
+
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(axis=0),
+        presenting_proportion=presenting_proportion,
+        t=np.array([0.0, 1.0, 2.0]),
+    )
+
+    expected = np.array([
+        [8.0, 8.0, 8.0],
+        [12.0, 10.0, 8.0],
+        [0.0, 2.0, 4.0],
+    ])
+
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_strict_priority_gatekeeping_raises_for_invalid_dimension():
+    gatekeeping = sd.strict_priority_gatekeeping(threshold=0.5)
+    stocks = np.zeros((3, 2, 2))
+
+    with pytest.raises(ValueError, match="stocks must be a 1D or 2D array-like structure."):
+        gatekeeping(
+            stocks=stocks,
+            population=1.0,
+            presenting_proportion=0.4,
+            t=0.0,
+        )
+
+
 def test_fixed_gatekeeping():
     gatekeeping = sd.fixed_gatekeeping(threshold=fixed_threshold)
     assert callable(gatekeeping)
