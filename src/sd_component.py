@@ -230,70 +230,100 @@ def fixed_capacity_proportional_gatekeeping(capacity):
 
 def seasonal_gatekeeping(baseline=8, amplitude=2, period=365, phase_shift=0):
     """
-    Returns a gatekeeping function that varies seasonally based on a sine
-    function. The returned function computes the lambda values for each stock.
+    Strict severity-priority gatekeeping with seasonally varying referral
+    capacity.
 
     Parameters
     ----------
     baseline : float
-        average value of the seasonal variation
+        Average referral capacity per time step.
     amplitude : float
-        amplitude of the seasonal variation
-    period : int
-        period of the seasonal variation (in days)
+        Amplitude of the seasonal variation in referral capacity.
+    period : float
+        Length of the seasonal cycle (e.g. 365 for yearly seasonality).
     phase_shift : float
-        phase shift of the seasonal variation (in days)
+        Horizontal shift of the seasonal cycle.
 
     Returns
     -------
     function
-        Gatekeeping function to calculate lambda values for each stock.
+        Function to calculate lambda values for each stock.
     """
 
     def gatekeeping_function(stocks, population, presenting_proportion, t):
+        """
+        Calculate referral flows under a seasonally varying fixed-capacity
+        strict severity-priority policy.
+
+        Parameters
+        ----------
+        stocks : list/array of scalars or arrays
+            Stock levels for each severity group, ordered by priority
+            (e.g. high, medium, low).
+        population : float or array
+            Included for compatibility with the SD framework.
+        presenting_proportion : float in [0, 1]
+            Proportion of each stock presenting to primary care.
+        t : float or array
+            Time input used to compute seasonal capacity.
+
+        Returns
+        -------
+        np.ndarray
+            Referral flows for each stock, either as:
+            - shape (n_groups,) for scalar input
+            - shape (n_groups, T) for time-series input
+        """
+        stocks = np.array(stocks, dtype=float)
         t = np.asarray(t)
+
         is_scalar = np.isscalar(t) or t.shape == ()
-        stocks = np.array(stocks)
 
         if is_scalar:
-            threshold = np.clip(
-                baseline + amplitude * np.sin(2 * np.pi * (t + phase_shift) / period),
-                0,
-                None,
+            capacity = max(
+                0.0,
+                baseline + amplitude * np.sin(2 * np.pi * (t + phase_shift) / period)
             )
 
-            if population == 0 or threshold == 0:
-                lambdas = np.zeros(3)
-            else:
-                remaining_capacity = threshold
-                lambdas = []
-                for stock in stocks:
-                    demand = presenting_proportion * stock
+            lambdas = np.zeros(len(stocks))
+
+            if capacity == 0:
+                return lambdas
+
+            remaining_capacity = capacity
+            for i, stock in enumerate(stocks):
+                demand = presenting_proportion * stock
+                allowed = min(demand, remaining_capacity)
+                lambdas[i] = allowed
+                remaining_capacity = max(remaining_capacity - allowed, 0.0)
+
+            return lambdas
+
+        elif stocks.ndim == 2:
+            n_groups, n_times = stocks.shape
+            lambdas = np.zeros((n_groups, n_times))
+
+            capacities = np.maximum(
+                0.0,
+                baseline + amplitude * np.sin(2 * np.pi * (t + phase_shift) / period)
+            )
+
+            for i in range(n_times):
+                remaining_capacity = capacities[i]
+
+                if remaining_capacity == 0:
+                    continue
+
+                for j in range(n_groups):
+                    demand = presenting_proportion * stocks[j, i]
                     allowed = min(demand, remaining_capacity)
-                    lambdas.append(allowed)
-                    remaining_capacity -= allowed
-                    remaining_capacity = max(remaining_capacity, 0)
+                    lambdas[j, i] = allowed
+                    remaining_capacity = max(remaining_capacity - allowed, 0.0)
+
+            return lambdas
+
         else:
-            thresholds = np.maximum(
-                0, baseline + amplitude * np.sin(2 * np.pi * (t + phase_shift) / period)
-            )
-
-            population = np.array(population)
-            time_steps = len(t)
-            lambdas = np.zeros((3, time_steps))
-
-            for i in range(time_steps):
-                if population[i] == 0 or thresholds[i] == 0:
-                    lambdas[:, i] = 0
-                else:
-                    remaining_capacity = thresholds[i]
-                    for j in range(3):
-                        demand = presenting_proportion * stocks[j, i]
-                        allowed = min(demand, remaining_capacity)
-                        lambdas[j, i] = allowed
-                        remaining_capacity -= allowed
-                        remaining_capacity = max(remaining_capacity, 0)
-        return lambdas
+            raise ValueError("stocks must be a 1D or 2D array-like structure.")
 
     return gatekeeping_function
 
