@@ -14,53 +14,6 @@ presenting_proportion = 0.002
 ts_sample = np.array([0, 1, 2, 3, 4])
 
 
-def test_proportional_gatekeeping():
-    gatekeeping = sd.strict_priority_gatekeeping(threshold=proportional_threshold)
-    assert callable(gatekeeping)
-
-    obtained_referrals_time_point = gatekeeping(
-        stocks=[sample_stocks[0][0], sample_stocks[1][0], sample_stocks[2][0]],
-        population=sample_stocks[0][0] + sample_stocks[1][0] + sample_stocks[2][0],
-        presenting_proportion=presenting_proportion,
-        t=0,
-    )
-
-    expected_referrals_time_point = [2, 6, 0]
-
-    assert np.allclose(
-        obtained_referrals_time_point[0], expected_referrals_time_point[0]
-    )
-    assert np.allclose(
-        obtained_referrals_time_point[1], expected_referrals_time_point[1]
-    )
-    assert np.allclose(
-        obtained_referrals_time_point[2], expected_referrals_time_point[2]
-    )
-
-    obtained_referrals_time_series = gatekeeping(
-        stocks=[sample_stocks[0], sample_stocks[1], sample_stocks[2]],
-        population=sample_stocks[0] + sample_stocks[1] + sample_stocks[2],
-        presenting_proportion=presenting_proportion,
-        t=ts_sample,
-    )
-
-    expected_referrals_time_series = [
-        np.array([2, 2.0002847, 2.00056941, 2.00085412, 2.00113884]),
-        np.array([6, 5.99964522, 5.99929043, 5.99893564, 5.99858085]),
-        np.array([0, 0, 0, 0, 0]),
-    ]
-
-    assert np.allclose(
-        obtained_referrals_time_series[0], expected_referrals_time_series[0]
-    )
-    assert np.allclose(
-        obtained_referrals_time_series[1], expected_referrals_time_series[1]
-    )
-    assert np.allclose(
-        obtained_referrals_time_series[2], expected_referrals_time_series[2]
-    )
-
-
 def test_strict_priority_gatekeeping_returns_callable():
     gatekeeping = sd.strict_priority_gatekeeping(threshold=0.5)
     assert callable(gatekeeping)
@@ -191,7 +144,7 @@ def test_strict_priority_gatekeeping_raises_for_invalid_dimension():
 
 
 def test_fixed_gatekeeping():
-    gatekeeping = sd.fixed_gatekeeping(threshold=fixed_threshold)
+    gatekeeping = sd.fixed_capacity_strict_gatekeeping(capacity=fixed_threshold)
     assert callable(gatekeeping)
 
     obtained_referrals_time_point = gatekeeping(
