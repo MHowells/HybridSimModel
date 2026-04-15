@@ -277,9 +277,7 @@ def seasonal_gatekeeping(baseline=8, amplitude=2, period=365, phase_shift=0):
         stocks = np.array(stocks, dtype=float)
         t = np.asarray(t)
 
-        is_scalar = np.isscalar(t) or t.shape == ()
-
-        if is_scalar:
+        if stocks.ndim == 1:
             capacity = max(
                 0.0,
                 baseline + amplitude * np.sin(2 * np.pi * (t + phase_shift) / period)
