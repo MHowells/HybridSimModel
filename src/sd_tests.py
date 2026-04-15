@@ -15,7 +15,7 @@ ts_sample = np.array([0, 1, 2, 3, 4])
 
 
 def test_proportional_gatekeeping():
-    gatekeeping = sd.proportional_gatekeeping(threshold=proportional_threshold)
+    gatekeeping = sd.strict_priority_gatekeeping(threshold=proportional_threshold)
     assert callable(gatekeeping)
 
     obtained_referrals_time_point = gatekeeping(
@@ -24,8 +24,18 @@ def test_proportional_gatekeeping():
         presenting_proportion=presenting_proportion,
         t=0,
     )
+
     expected_referrals_time_point = [2, 6, 0]
-    assert np.allclose(obtained_referrals_time_point, expected_referrals_time_point)
+
+    assert np.allclose(
+        obtained_referrals_time_point[0], expected_referrals_time_point[0]
+    )
+    assert np.allclose(
+        obtained_referrals_time_point[1], expected_referrals_time_point[1]
+    )
+    assert np.allclose(
+        obtained_referrals_time_point[2], expected_referrals_time_point[2]
+    )
 
     obtained_referrals_time_series = gatekeeping(
         stocks=[sample_stocks[0], sample_stocks[1], sample_stocks[2]],
@@ -33,11 +43,13 @@ def test_proportional_gatekeeping():
         presenting_proportion=presenting_proportion,
         t=ts_sample,
     )
+
     expected_referrals_time_series = [
         np.array([2, 2.0002847, 2.00056941, 2.00085412, 2.00113884]),
         np.array([6, 5.99964522, 5.99929043, 5.99893564, 5.99858085]),
         np.array([0, 0, 0, 0, 0]),
     ]
+
     assert np.allclose(
         obtained_referrals_time_series[0], expected_referrals_time_series[0]
     )

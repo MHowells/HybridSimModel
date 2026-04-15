@@ -3,15 +3,16 @@ from scipy.integrate import odeint
 import matplotlib.pyplot as plt
 
 
-def proportional_gatekeeping(threshold):
+def strict_priority_gatekeeping(threshold):
     """
-    Proportional gatekeeping function.
+    Strict severity-priority gatekeeping with a referral cap proportional
+    to total presenting demand.
 
     Parameters
     ----------
     threshold : float in [0, 1]
-        Proportion threshold for gatekeeping
-
+        Proportion of the total presenting demand that can be referred
+        at each time step.
     Returns
     -------
     function
@@ -20,41 +21,60 @@ def proportional_gatekeeping(threshold):
 
     def gatekeeping_function(stocks, population, presenting_proportion, t):
         """
-        Gatekeeping function to calculate lambda values for each stock.
+        Calculate referral flows under a strict severity-priority policy,
+        where the total referral capacity is a proportion of total presenting
+        demand.
+
         Parameters
         ----------
-        stocks : list of floats or arrays
-            Stock levels at current time step t or over time
+        stocks : list/array of scalars or arrays
+            Stock levels for each severity group, ordered by priority
+            (e.g. high, medium, low).
         population : float or array
-            Total population at time t (scalar or array)
+            Included for compatibility with the SD framework, but unused.
         presenting_proportion : float in [0, 1]
-            Proportion of patients presenting from each stock
+            Proportion of each stock presenting to primary care.
+        t : float or array
+            Time input (unused here, but included for compatibility).
+
         Returns
         -------
-        list
-            list of arrays or scalars representing the lambda values for each stock.
+        np.ndarray
+            Referral flows for each stock, either as:
+            - shape (n_groups,) for scalar input
+            - shape (n_groups, T) for time-series input
         """
-        stocks = np.array(stocks)
-        lambdas = []
+        stocks = np.array(stocks, dtype=float)
 
-        for i in range(len(stocks)):
-            if i == 0:
-                subtracted = 0
-            else:
-                subtracted = sum(stocks[:i])
-            stock = stocks[i]
-            ratio = np.zeros_like(stock)
-            positives = stock > 0
-            if np.isscalar(subtracted):
-                ratio[positives] = (
-                    (threshold * population[positives]) - subtracted
-                ) / stock[positives]
-            else:
-                ratio[positives] = (
-                    (threshold * population[positives]) - subtracted[positives]
-                ) / stock[positives]
-            lambdas.append(presenting_proportion * np.clip(ratio, 0, 1) * stock)
-        return lambdas
+        if stocks.ndim == 1:
+            demand = presenting_proportion * stocks
+            total_capacity = threshold * demand.sum()
+            remaining_capacity = total_capacity
+            lambdas = np.zeros(len(stocks))
+
+            for i, d in enumerate(demand):
+                allowed = min(d, remaining_capacity)
+                lambdas[i] = allowed
+                remaining_capacity = max(remaining_capacity - allowed, 0.0)
+
+            return lambdas
+
+        elif stocks.ndim == 2:
+            demand = presenting_proportion * stocks
+            n_groups, n_times = demand.shape
+            lambdas = np.zeros((n_groups, n_times))
+            total_capacity = threshold * demand.sum(axis=0)
+            remaining_capacity = total_capacity.copy()
+
+            for i in range(n_groups):
+                allowed = np.minimum(demand[i], remaining_capacity)
+                lambdas[i] = allowed
+                remaining_capacity = np.maximum(remaining_capacity - allowed, 0.0)
+
+            return lambdas
+
+        else:
+            raise ValueError("stocks must be a 1D or 2D array-like structure.")
 
     return gatekeeping_function
 
