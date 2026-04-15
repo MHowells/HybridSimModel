@@ -70,7 +70,7 @@ def test_strict_priority_gatekeeping_scalar_zero_threshold():
     np.testing.assert_allclose(obtained, expected)
 
 
-def test_strict_priority_gatekeeping_scalar_zero_stocks():
+def test_strict_priority_gatekeeping_scalar_empty_stocks():
     stocks = np.array([0.0, 0.0, 0.0])
     presenting_proportion = 0.4
     threshold = 0.5
@@ -149,6 +149,153 @@ def test_strict_priority_gatekeeping_time_series_case():
 
 def test_strict_priority_gatekeeping_raises_for_invalid_dimension():
     gatekeeping = sd.strict_priority_gatekeeping(threshold=0.5)
+    stocks = np.zeros((3, 2, 2))
+
+    with pytest.raises(ValueError, match="stocks must be a 1D or 2D array-like structure."):
+        gatekeeping(
+            stocks=stocks,
+            population=1.0,
+            presenting_proportion=0.4,
+            t=0.0,
+        )
+
+
+def test_fixed_capacity_strict_gatekeeping_returns_callable():
+    gatekeeping = sd.fixed_capacity_strict_gatekeeping(capacity=15.0)
+    assert callable(gatekeeping)
+
+
+def test_fixed_capacity_strict_gatekeeping_scalar_exact_fill():
+    stocks = np.array([20.0, 30.0, 50.0])
+    presenting_proportion = 0.4
+    capacity = 20.0
+
+    gatekeeping = sd.fixed_capacity_strict_gatekeeping(capacity)
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected = np.array([8.0, 12.0, 0.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_fixed_capacity_strict_gatekeeping_scalar_partial_medium():
+    stocks = np.array([20.0, 30.0, 50.0])
+    presenting_proportion = 0.4
+    capacity = 15.0
+
+    gatekeeping = sd.fixed_capacity_strict_gatekeeping(capacity)
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected = np.array([8.0, 7.0, 0.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_fixed_capacity_strict_gatekeeping_scalar_no_capacity():
+    stocks = np.array([20.0, 30.0, 50.0])
+    presenting_proportion = 0.4
+    capacity = 0.0
+
+    gatekeeping = sd.fixed_capacity_strict_gatekeeping(capacity)
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected = np.array([0.0, 0.0, 0.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_fixed_capacity_strict_gatekeeping_scalar_empty_stocks():
+    stocks = np.array([0.0, 0.0, 0.0])
+    presenting_proportion = 0.4
+    capacity = 15.0
+
+    gatekeeping = sd.fixed_capacity_strict_gatekeeping(capacity)
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected = np.array([0.0, 0.0, 0.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_fixed_capacity_strict_gatekeeping_scalar_full_capacity():
+    stocks = np.array([20.0, 30.0, 50.0])
+    presenting_proportion = 0.4
+    capacity = 40.0
+
+    gatekeeping = sd.fixed_capacity_strict_gatekeeping(capacity)
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected = np.array([8.0, 12.0, 20.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_fixed_capacity_strict_gatekeeping_scalar_all_capacity_to_first_group():
+    stocks = np.array([100.0, 20.0, 10.0])
+    presenting_proportion = 0.5
+    capacity = 13.0
+
+    gatekeeping = sd.fixed_capacity_strict_gatekeeping(capacity)
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected = np.array([13.0, 0.0, 0.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_fixed_capacity_strict_gatekeeping_time_series_case():
+    stocks = np.array([
+        [20.0, 20.0, 20.0],
+        [30.0, 25.0, 20.0],
+        [50.0, 55.0, 60.0],
+    ])
+    presenting_proportion = 0.4
+    capacity = 15.0
+
+    gatekeeping = sd.fixed_capacity_strict_gatekeeping(capacity)
+
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(axis=0),
+        presenting_proportion=presenting_proportion,
+        t=np.array([0.0, 1.0, 2.0]),
+    )
+
+    expected = np.array([
+        [8.0, 8.0, 8.0],
+        [7.0, 7.0, 7.0],
+        [0.0, 0.0, 0.0],
+    ])
+
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_fixed_capacity_strict_gatekeeping_raises_for_invalid_dimension():
+    gatekeeping = sd.fixed_capacity_strict_gatekeeping(capacity=15.0)
     stocks = np.zeros((3, 2, 2))
 
     with pytest.raises(ValueError, match="stocks must be a 1D or 2D array-like structure."):
