@@ -307,39 +307,163 @@ def test_fixed_capacity_strict_gatekeeping_raises_for_invalid_dimension():
         )
 
 
-def test_fixed_gatekeeping():
-    gatekeeping = sd.fixed_capacity_strict_gatekeeping(capacity=fixed_threshold)
+def test_fixed_capacity_proportional_gatekeeping_returns_callable():
+    gatekeeping = sd.fixed_capacity_proportional_gatekeeping(capacity=15.0)
     assert callable(gatekeeping)
 
-    obtained_referrals_time_point = gatekeeping(
-        stocks=[sample_stocks[0][0], sample_stocks[1][0], sample_stocks[2][0]],
-        population=sample_stocks[0][0] + sample_stocks[1][0] + sample_stocks[2][0],
-        presenting_proportion=presenting_proportion,
-        t=0,
-    )
-    expected_referrals_time_point = [2, 6, 8]
-    assert np.allclose(obtained_referrals_time_point, expected_referrals_time_point)
 
-    obtained_referrals_time_series = gatekeeping(
-        stocks=[sample_stocks[0], sample_stocks[1], sample_stocks[2]],
-        population=sample_stocks[0] + sample_stocks[1] + sample_stocks[2],
+def test_fixed_capacity_proportional_gatekeeping_scalar_exact_fill():
+    stocks = np.array([20.0, 30.0, 50.0])
+    presenting_proportion = 0.4
+    capacity = 40.0
+
+    gatekeeping = sd.fixed_capacity_proportional_gatekeeping(capacity)
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
         presenting_proportion=presenting_proportion,
-        t=ts_sample,
+        t=0.0,
     )
-    expected_referrals_time_series = [
-        np.array([2, 2.0002847 , 2.00056941, 2.00085412, 2.00113884]),
-        np.array([6, 6.00019708, 6.00039412, 6.00059112, 6.00078809]),
-        np.array([8, 7.99951822, 7.99903647, 7.99855475, 7.99807308]),
-    ]
-    assert np.allclose(
-        obtained_referrals_time_series[0], expected_referrals_time_series[0]
+
+    expected = np.array([8.0, 12.0, 20.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_fixed_capacity_proportional_gatekeeping_scalar_partial_allocation():
+    stocks = np.array([20.0, 30.0, 50.0])
+    presenting_proportion = 0.4
+    capacity = 15.0
+
+    gatekeeping = sd.fixed_capacity_proportional_gatekeeping(capacity)
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
     )
-    assert np.allclose(
-        obtained_referrals_time_series[1], expected_referrals_time_series[1]
+
+    expected = np.array([3.0, 4.5, 7.5])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_fixed_capacity_proportional_gatekeeping_scalar_no_capacity():
+    stocks = np.array([20.0, 30.0, 50.0])
+    presenting_proportion = 0.4
+    capacity = 0.0
+
+    gatekeeping = sd.fixed_capacity_proportional_gatekeeping(capacity)
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
     )
-    assert np.allclose(
-        obtained_referrals_time_series[2], expected_referrals_time_series[2]
+
+    expected = np.array([0.0, 0.0, 0.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_fixed_capacity_proportional_gatekeeping_scalar_empty_stocks():
+    stocks = np.array([0.0, 0.0, 0.0])
+    presenting_proportion = 0.4
+    capacity = 15.0
+
+    gatekeeping = sd.fixed_capacity_proportional_gatekeeping(capacity)
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
     )
+
+    expected = np.array([0.0, 0.0, 0.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_fixed_capacity_proportional_gatekeeping_scalar_full_capacity():
+    stocks = np.array([20.0, 30.0, 50.0])
+    presenting_proportion = 0.4
+    capacity = 50.0
+
+    gatekeeping = sd.fixed_capacity_proportional_gatekeeping(capacity)
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected = np.array([8.0, 12.0, 20.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_fixed_capacity_proportional_gatekeeping_scalar_order_invariant():
+    stocks_a = np.array([20.0, 30.0, 50.0])
+    stocks_b = np.array([50.0, 20.0, 30.0])
+    presenting_proportion = 0.4
+    capacity = 15.0
+
+    gatekeeping = sd.fixed_capacity_proportional_gatekeeping(capacity)
+
+    obtained_a = gatekeeping(
+        stocks=stocks_a,
+        population=stocks_a.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    obtained_b = gatekeeping(
+        stocks=stocks_b,
+        population=stocks_b.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected_a = np.array([3.0, 4.5, 7.5])
+    expected_b = np.array([7.5, 3.0, 4.5])
+
+    np.testing.assert_allclose(obtained_a, expected_a)
+    np.testing.assert_allclose(obtained_b, expected_b)
+
+
+def test_fixed_capacity_proportional_gatekeeping_time_series_case():
+    stocks = np.array([
+        [20.0, 20.0, 20.0],
+        [30.0, 25.0, 20.0],
+        [50.0, 55.0, 60.0],
+    ])
+    presenting_proportion = 0.4
+    capacity = 15.0
+
+    gatekeeping = sd.fixed_capacity_proportional_gatekeeping(capacity)
+
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(axis=0),
+        presenting_proportion=presenting_proportion,
+        t=np.array([0.0, 1.0, 2.0]),
+    )
+
+    expected = np.array([
+        [3.0, 3.0, 3.0],
+        [4.5, 3.75, 3.0],
+        [7.5, 8.25, 9.0],
+    ])
+
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_fixed_capacity_proportional_gatekeeping_raises_for_invalid_dimension():
+    gatekeeping = sd.fixed_capacity_proportional_gatekeeping(capacity=15.0)
+    stocks = np.zeros((3, 2, 2))
+
+    with pytest.raises(ValueError, match="stocks must be a 1D or 2D array-like structure."):
+        gatekeeping(
+            stocks=stocks,
+            population=1.0,
+            presenting_proportion=0.4,
+            t=0.0,
+        )
 
 
 def test_seasonal_gatekeeping():
