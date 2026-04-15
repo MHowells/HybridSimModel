@@ -466,6 +466,231 @@ def test_fixed_capacity_proportional_gatekeeping_raises_for_invalid_dimension():
         )
 
 
+def test_seasonal_gatekeeping_returns_callable():
+    gatekeeping = sd.seasonal_gatekeeping(baseline=8, amplitude=2, period=365, phase_shift=0)
+    assert callable(gatekeeping)
+
+
+def test_seasonal_gatekeeping_scalar_at_baseline_capacity():
+    stocks = np.array([20.0, 30.0, 50.0])
+    presenting_proportion = 0.4
+
+    gatekeeping = sd.seasonal_gatekeeping(
+        baseline=10.0,
+        amplitude=2.0,
+        period=365.0,
+        phase_shift=0.0,
+    )
+
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected = np.array([8.0, 2.0, 0.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_seasonal_gatekeeping_scalar_partial_medium():
+    stocks = np.array([20.0, 30.0, 50.0])
+    presenting_proportion = 0.4
+
+    gatekeeping = sd.seasonal_gatekeeping(
+        baseline=15.0,
+        amplitude=0.0,
+        period=365.0,
+        phase_shift=0.0,
+    )
+
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected = np.array([8.0, 7.0, 0.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_seasonal_gatekeeping_scalar_no_capacity():
+    stocks = np.array([20.0, 30.0, 50.0])
+    presenting_proportion = 0.4
+
+    gatekeeping = sd.seasonal_gatekeeping(
+        baseline=0.0,
+        amplitude=0.0,
+        period=365.0,
+        phase_shift=0.0,
+    )
+
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected = np.array([0.0, 0.0, 0.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_seasonal_gatekeeping_scalar_empty_stocks():
+    stocks = np.array([0.0, 0.0, 0.0])
+    presenting_proportion = 0.4
+
+    gatekeeping = sd.seasonal_gatekeeping(
+        baseline=10.0,
+        amplitude=5.0,
+        period=365.0,
+        phase_shift=0.0,
+    )
+
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=0.0,
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected = np.array([0.0, 0.0, 0.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_seasonal_gatekeeping_scalar_full_capacity():
+    stocks = np.array([20.0, 30.0, 50.0])
+    presenting_proportion = 0.4
+
+    gatekeeping = sd.seasonal_gatekeeping(
+        baseline=50.0,
+        amplitude=0.0,
+        period=365.0,
+        phase_shift=0.0,
+    )
+
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected = np.array([8.0, 12.0, 20.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_seasonal_gatekeeping_time_series_case():
+    stocks = np.array([
+        [20.0, 20.0, 20.0],
+        [30.0, 25.0, 20.0],
+        [50.0, 55.0, 60.0],
+    ])
+    presenting_proportion = 0.4
+    t = np.array([0.0, 1.0, 2.0])
+
+    gatekeeping = sd.seasonal_gatekeeping(
+        baseline=10.0,
+        amplitude=5.0,
+        period=4.0,
+        phase_shift=0.0,
+    )
+
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(axis=0),
+        presenting_proportion=presenting_proportion,
+        t=t,
+    )
+
+    expected = np.array([
+        [8.0, 8.0, 8.0],
+        [2.0, 7.0, 2.0],
+        [0.0, 0.0, 0.0],
+    ])
+
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_seasonal_gatekeeping_phase_shift_changes_capacity():
+    stocks = np.array([20.0, 30.0, 50.0])
+    presenting_proportion = 0.4
+
+    gatekeeping_no_shift = sd.seasonal_gatekeeping(
+        baseline=10.0,
+        amplitude=5.0,
+        period=4.0,
+        phase_shift=0.0,
+    )
+    gatekeeping_shifted = sd.seasonal_gatekeeping(
+        baseline=10.0,
+        amplitude=5.0,
+        period=4.0,
+        phase_shift=1.0,
+    )
+
+    obtained_no_shift = gatekeeping_no_shift(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+    obtained_shifted = gatekeeping_shifted(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected_no_shift = np.array([8.0, 2.0, 0.0])
+    expected_shifted = np.array([8.0, 7.0, 0.0])
+
+    np.testing.assert_allclose(obtained_no_shift, expected_no_shift)
+    np.testing.assert_allclose(obtained_shifted, expected_shifted)
+
+
+def test_seasonal_gatekeeping_negative_capacity_clipped_to_zero():
+    stocks = np.array([20.0, 30.0, 50.0])
+    presenting_proportion = 0.4
+
+    gatekeeping = sd.seasonal_gatekeeping(
+        baseline=1.0,
+        amplitude=5.0,
+        period=4.0,
+        phase_shift=3.0,
+    )
+
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected = np.array([0.0, 0.0, 0.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
+
+def test_seasonal_gatekeeping_raises_for_invalid_dimension():
+    gatekeeping = sd.seasonal_gatekeeping(
+        baseline=8.0,
+        amplitude=2.0,
+        period=365.0,
+        phase_shift=0.0,
+    )
+    stocks = np.zeros((3, 2, 2))
+
+    with pytest.raises(ValueError, match="stocks must be a 1D or 2D array-like structure."):
+        gatekeeping(
+            stocks=stocks,
+            population=1.0,
+            presenting_proportion=0.4,
+            t=0.0,
+        )
+
+
 def test_seasonal_gatekeeping():
     gatekeeping = sd.seasonal_gatekeeping(baseline=8, amplitude=4, phase_shift=0)
     assert callable(gatekeeping)
