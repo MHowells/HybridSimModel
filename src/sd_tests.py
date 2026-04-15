@@ -691,39 +691,117 @@ def test_seasonal_gatekeeping_raises_for_invalid_dimension():
         )
 
 
-def test_seasonal_gatekeeping():
-    gatekeeping = sd.seasonal_gatekeeping(baseline=8, amplitude=4, phase_shift=0)
+def test_proportional_access_gatekeeping_returns_callable():
+    gatekeeping = sd.proportional_access_gatekeeping(threshold=0.5)
     assert callable(gatekeeping)
 
-    obtained_referrals_time_point = gatekeeping(
-        stocks=[sample_stocks[0][0], sample_stocks[1][0], sample_stocks[2][0]],
-        population=sample_stocks[0][0] + sample_stocks[1][0] + sample_stocks[2][0],
-        presenting_proportion=presenting_proportion,
-        t=0,
-    )
-    expected_referrals_time_point = [2, 6, 0]
-    assert np.allclose(obtained_referrals_time_point, expected_referrals_time_point)
 
-    obtained_referrals_time_series = gatekeeping(
-        stocks=[sample_stocks[0], sample_stocks[1], sample_stocks[2]],
-        population=sample_stocks[0] + sample_stocks[1] + sample_stocks[2],
+def test_proportional_access_gatekeeping_scalar():
+    stocks = np.array([20.0, 30.0, 50.0])
+    presenting_proportion = 0.4
+    threshold = 0.5
+
+    gatekeeping = sd.proportional_access_gatekeeping(threshold)
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
         presenting_proportion=presenting_proportion,
-        t=ts_sample,
+        t=0.0,
     )
-    expected_referrals_time_series = [
-        np.array([2, 2.0002847 , 2.00056941, 2.00085412, 2.00113884]),
-        np.array([6, 6.00019708, 6.00039412, 6.00059112, 6.00078809]),
-        np.array([0, 0.06837164, 0.13672292, 0.20503342, 0.27328278]),
-    ]
-    assert np.allclose(
-        obtained_referrals_time_series[0], expected_referrals_time_series[0]
+
+    expected = np.array([4.0, 6.0, 10.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_proportional_access_gatekeeping_scalar_zero_threshold():
+    stocks = np.array([20.0, 30.0, 50.0])
+    presenting_proportion = 0.4
+    threshold = 0.0
+
+    gatekeeping = sd.proportional_access_gatekeeping(threshold)
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
     )
-    assert np.allclose(
-        obtained_referrals_time_series[1], expected_referrals_time_series[1]
+
+    expected = np.array([0.0, 0.0, 0.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_proportional_access_gatekeeping_scalar_full_threshold():
+    stocks = np.array([20.0, 30.0, 50.0])
+    presenting_proportion = 0.4
+    threshold = 1.0
+
+    gatekeeping = sd.proportional_access_gatekeeping(threshold)
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
     )
-    assert np.allclose(
-        obtained_referrals_time_series[2], expected_referrals_time_series[2]
+
+    expected = np.array([8.0, 12.0, 20.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_proportional_access_gatekeeping_scalar_empty_stocks():
+    stocks = np.array([0.0, 0.0, 0.0])
+    presenting_proportion = 0.4
+    threshold = 0.5
+
+    gatekeeping = sd.proportional_access_gatekeeping(threshold)
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
     )
+
+    expected = np.array([0.0, 0.0, 0.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_proportional_access_gatekeeping_time_series_case():
+    stocks = np.array([
+        [20.0, 20.0, 20.0],
+        [30.0, 25.0, 20.0],
+        [50.0, 55.0, 60.0],
+    ])
+    presenting_proportion = 0.4
+    threshold = 0.5
+
+    gatekeeping = sd.proportional_access_gatekeeping(threshold)
+
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(axis=0),
+        presenting_proportion=presenting_proportion,
+        t=np.array([0.0, 1.0, 2.0]),
+    )
+
+    expected = np.array([
+        [4.0, 4.0, 4.0],
+        [6.0, 5.0, 4.0],
+        [10.0, 11.0, 12.0],
+    ])
+
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_proportional_access_gatekeeping_raises_for_invalid_dimension():
+    gatekeeping = sd.proportional_access_gatekeeping(threshold=0.5)
+    stocks = np.zeros((3, 2, 2))
+
+    with pytest.raises(ValueError, match="stocks must be a 1D or 2D array-like structure."):
+        gatekeeping(
+            stocks=stocks,
+            population=1.0,
+            presenting_proportion=0.4,
+            t=0.0,
+        )
 
 
 def test_get_time_dependent_population_size():
