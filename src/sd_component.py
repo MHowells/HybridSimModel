@@ -381,6 +381,63 @@ def proportional_access_gatekeeping(threshold):
     return gatekeeping_function
 
 
+def severity_specific_gatekeeping(proportions):
+    """
+    Gatekeeping function that allows a fixed percentage of each severity group
+    to pass through per time step.
+
+    Parameters
+    ----------
+    proportions : list of floats
+        Proportions for each stock, e.g., [0.5, 0.3, 0.3] for high, medium, low 
+        severity
+
+    Returns
+    -------
+    function
+        Function to calculate lambda values for each stock.
+    """
+    proportions = np.array(proportions)
+
+    def gatekeeping_function(stocks, population, presenting_proportion, t):
+        """
+        Calculates lambda values based on fixed proportions for each stock.
+
+        Parameters
+        ----------
+        stocks : list/array of scalars or arrays
+            Stock levels for each severity group, ordered by priority 
+            (e.g. high, medium, low).
+        population : float or array
+            Included for compatibility with the SD framework, but unused.
+        presenting_proportion : float in [0, 1]
+            Proportion of each stock presenting to primary care.
+        t : float
+            Time input (unused here, but included for compatibility).
+
+        Returns
+        -------
+        np.ndarray
+            Referral flows for each stock, either as:
+            - shape (n_groups,) for scalar input
+            - shape (n_groups, T) for time-series input
+        """
+        stocks = np.array(stocks, dtype=float)
+
+        if stocks.ndim == 1:
+            lambdas = presenting_proportion * proportions * stocks
+            return lambdas
+
+        elif stocks.ndim == 2:
+            lambdas = presenting_proportion * proportions[:, None] * stocks
+            return lambdas
+
+        else:
+            raise ValueError("stocks must be a 1D or 2D array-like structure.")
+
+    return gatekeeping_function
+
+
 class SD:
     """
     A class to hold the SD component.
