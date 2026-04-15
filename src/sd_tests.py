@@ -672,7 +672,6 @@ def test_seasonal_gatekeeping_negative_capacity_clipped_to_zero():
     np.testing.assert_allclose(obtained, expected)
 
 
-
 def test_seasonal_gatekeeping_raises_for_invalid_dimension():
     gatekeeping = sd.seasonal_gatekeeping(
         baseline=8.0,
@@ -793,6 +792,119 @@ def test_proportional_access_gatekeeping_time_series_case():
 
 def test_proportional_access_gatekeeping_raises_for_invalid_dimension():
     gatekeeping = sd.proportional_access_gatekeeping(threshold=0.5)
+    stocks = np.zeros((3, 2, 2))
+
+    with pytest.raises(ValueError, match="stocks must be a 1D or 2D array-like structure."):
+        gatekeeping(
+            stocks=stocks,
+            population=1.0,
+            presenting_proportion=0.4,
+            t=0.0,
+        )
+
+
+def test_severity_specific_gatekeeping_returns_callable():
+    gatekeeping = sd.severity_specific_gatekeeping(proportions=[0.5, 0.3, 0.1])
+    assert callable(gatekeeping)
+
+
+def test_severity_specific_gatekeeping_scalar():
+    stocks = np.array([20.0, 30.0, 50.0])
+    presenting_proportion = 0.4
+    proportions = np.array([0.5, 0.3, 0.1])
+
+    gatekeeping = sd.severity_specific_gatekeeping(proportions)
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected = np.array([4.0, 3.6, 2.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_severity_specific_gatekeeping_scalar_zero_proportions():
+    stocks = np.array([20.0, 30.0, 50.0])
+    presenting_proportion = 0.4
+    proportions = np.array([0.0, 0.0, 0.0])
+
+    gatekeeping = sd.severity_specific_gatekeeping(proportions)
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected = np.array([0.0, 0.0, 0.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_severity_specific_gatekeeping_scalar_full_proportions():
+    stocks = np.array([20.0, 30.0, 50.0])
+    presenting_proportion = 0.4
+    proportions = np.array([1.0, 1.0, 1.0])
+
+    gatekeeping = sd.severity_specific_gatekeeping(proportions)
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected = np.array([8.0, 12.0, 20.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_severity_specific_gatekeeping_scalar_empty_stocks():
+    stocks = np.array([0.0, 0.0, 0.0])
+    presenting_proportion = 0.4
+    proportions = np.array([0.5, 0.3, 0.1])
+
+    gatekeeping = sd.severity_specific_gatekeeping(proportions)
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected = np.array([0.0, 0.0, 0.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_severity_specific_gatekeeping_time_series_case():
+    stocks = np.array([
+        [20.0, 20.0, 20.0],
+        [30.0, 25.0, 20.0],
+        [50.0, 55.0, 60.0],
+    ])
+    presenting_proportion = 0.4
+    proportions = np.array([0.5, 0.3, 0.1])
+
+    gatekeeping = sd.severity_specific_gatekeeping(proportions)
+
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(axis=0),
+        presenting_proportion=presenting_proportion,
+        t=np.array([0.0, 1.0, 2.0]),
+    )
+
+    expected = np.array([
+        [4.0, 4.0, 4.0],
+        [3.6, 3.0, 2.4],
+        [2.0, 2.2, 2.4],
+    ])
+
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_severity_specific_gatekeeping_raises_for_invalid_dimension():
+    gatekeeping = sd.severity_specific_gatekeeping(proportions=[0.5, 0.3, 0.1])
     stocks = np.zeros((3, 2, 2))
 
     with pytest.raises(ValueError, match="stocks must be a 1D or 2D array-like structure."):
