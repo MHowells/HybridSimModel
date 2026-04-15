@@ -70,6 +70,23 @@ def test_strict_priority_gatekeeping_scalar_zero_threshold():
     np.testing.assert_allclose(obtained, expected)
 
 
+def test_strict_priority_gatekeeping_scalar_zero_stocks():
+    stocks = np.array([0.0, 0.0, 0.0])
+    presenting_proportion = 0.4
+    threshold = 0.5
+
+    gatekeeping = sd.strict_priority_gatekeeping(threshold)
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected = np.array([0.0, 0.0, 0.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
 def test_strict_priority_gatekeeping_scalar_full_threshold():
     stocks = np.array([20.0, 30.0, 50.0])
     presenting_proportion = 0.4
