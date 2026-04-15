@@ -53,6 +53,23 @@ def test_strict_priority_gatekeeping_scalar_partial_medium():
     np.testing.assert_allclose(obtained, expected)
 
 
+def test_strict_priority_gatekeeping_scalar_leftovers_to_final_group():
+    stocks = np.array([10.0, 10.0, 100.0])
+    presenting_proportion = 0.5
+    threshold = 0.2
+
+    gatekeeping = sd.strict_priority_gatekeeping(threshold)
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected = np.array([5.0, 5.0, 2.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
 def test_strict_priority_gatekeeping_scalar_zero_threshold():
     stocks = np.array([20.0, 30.0, 50.0])
     presenting_proportion = 0.4
@@ -196,6 +213,23 @@ def test_fixed_capacity_strict_gatekeeping_scalar_partial_medium():
     )
 
     expected = np.array([8.0, 7.0, 0.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_fixed_capacity_strict_gatekeeping_scalar_leftovers_to_final_group():
+    stocks = np.array([10.0, 10.0, 100.0])
+    presenting_proportion = 0.5
+    capacity = 12.0
+
+    gatekeeping = sd.fixed_capacity_strict_gatekeeping(capacity)
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected = np.array([5.0, 5.0, 2.0])
     np.testing.assert_allclose(obtained, expected)
 
 
@@ -512,6 +546,28 @@ def test_seasonal_gatekeeping_scalar_partial_medium():
     )
 
     expected = np.array([8.0, 7.0, 0.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_seasonal_gatekeeping_scalar_leftovers_to_low_group():
+    stocks = np.array([10.0, 10.0, 100.0])
+    presenting_proportion = 0.5
+
+    gatekeeping = sd.seasonal_gatekeeping(
+        baseline=12.0,
+        amplitude=0.0,
+        period=365.0,
+        phase_shift=0.0,
+    )
+
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected = np.array([5.0, 5.0, 2.0])
     np.testing.assert_allclose(obtained, expected)
 
 
