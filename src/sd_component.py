@@ -153,6 +153,81 @@ def fixed_capacity_strict_gatekeeping(capacity):
     return gatekeeping_function
 
 
+def fixed_capacity_proportional_gatekeeping(capacity):
+    """
+    Gatekeeping function with a fixed total referral capacity per time step,
+    allocated proportionally across severity groups according to presenting 
+    demand.
+
+    Parameters
+    ----------
+    capacity : float or int
+        Maximum number of presenting patients who can be referred per time step.
+
+    Returns
+    -------
+    function
+        Function to compute lambda values for each stock.
+    """
+
+    def gatekeeping_function(stocks, population, presenting_proportion, t):
+        """
+        Calculates lambda values by allocating a fixed referral capacity
+        proportionally across severity groups based on presenting demand.
+
+        Parameters
+        ----------
+        stocks : list/array of scalars or arrays
+            Stock levels for each severity group, ordered by priority 
+            (e.g. high, medium, low).
+        population : float or array
+            Included for compatibility with the SD framework, but unused.
+        presenting_proportion : float in [0, 1]
+            Proportion of each stock presenting to primary care.
+        t : float or array
+            Time input (unused here, but included for compatibility).
+
+        Returns
+        -------
+        np.ndarray
+            Referral flows for each stock, either as:
+            - shape (3,) for scalar input
+            - shape (3, T) for time-series input
+        """
+        stocks = np.array(stocks, dtype=float)
+
+        if stocks.ndim == 1:
+            demand = presenting_proportion * stocks
+            total_demand = demand.sum()
+
+            if total_demand == 0:
+                lambdas = np.zeros(len(stocks))
+            else:
+                lambdas = capacity * demand / total_demand
+                lambdas = np.minimum(lambdas, demand)
+
+            return lambdas
+
+        elif stocks.ndim == 2:
+            demand = presenting_proportion * stocks
+            total_demand = demand.sum(axis=0)
+            lambdas = np.zeros_like(demand)
+
+            positive_demand = total_demand > 0
+            lambdas[:, positive_demand] = (
+                capacity * demand[:, positive_demand] / total_demand[positive_demand]
+            )
+
+            lambdas = np.minimum(lambdas, demand)
+
+            return lambdas
+
+        else:
+            raise ValueError("stocks must be a 1D or 2D array-like structure.")
+
+    return gatekeeping_function
+
+
 def seasonal_gatekeeping(baseline=8, amplitude=2, period=365, phase_shift=0):
     """
     Returns a gatekeeping function that varies seasonally based on a sine
