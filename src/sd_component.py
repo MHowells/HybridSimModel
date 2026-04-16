@@ -1056,7 +1056,12 @@ def get_time_dependent_recovery_rate(recovery_proportions, durations=np.NaN):
 
 
 def plot_stocks_over_time(
-    stocks, t, ylim=None, title="Stock Size Over Time (Illustrative)", filename=None
+    stocks, 
+    t, 
+    ylim=None, 
+    title="Stock Size Over Time", 
+    filename=None, 
+    show=True,
 ):
     """
     Plots the stock sizes over time.
@@ -1067,40 +1072,65 @@ def plot_stocks_over_time(
         List of 3 arrays representing the stock sizes P1, P2, P3.
     t : array-like
         Time vector.
-    ylim : tuple
-        Y-axis limits for the plot.
+    ylim : tuple, optional
+        Y-axis limits for the plot (default is None).
     title : str
         Title of the plot.
     filename : str, optional
         Filename to save the plot (default is None, which does not save the plot).
+    show : bool, optional
+        Whether to display the plot (default is True).
+
+    Returns
+    -------
+    fig, ax : matplotlib figure and axes objects
+            The figure and axes objects for further customization if needed.
     """
+    if len(stocks) != 3:
+        raise ValueError("stocks must contain exactly 3 arrays.")
+    if any(len(stock) != len(t) for stock in stocks):
+        raise ValueError("Each stock array must have the same length as t.")
+    
     fig, ax = plt.subplots(figsize=(6, 4))
     colors = ["#FFC107", "#1E88E5", "#D81B60"]
-    for i in range(len(stocks)):
-        ax.plot(t, stocks[i], label=f"$P_{i+1}$", color=colors[i])
+    labels = ["$P_1$ (High)", "$P_2$ (Medium)", "$P_3$ (Low)"]
+    for stock, color, label in zip(stocks, colors, labels):
+        ax.plot(t, stock, label=label, color=color)
+
     ax.set_title(title, fontsize=16)
     ax.set_xlabel("Time (days)", fontsize=14)
-    ax.set_ylabel("Stock Size", fontsize=14)
-    if ylim:
+    ax.set_ylabel("Population in stock", fontsize=14)
+    
+    if ylim is not None:
         ax.set_ylim(ylim)
+
     ax.legend(fontsize=10)
-    ax.grid(True, which="both", linestyle="--", linewidth=0.5, color="gray")  # optional
-    plt.tight_layout()
-    plt.show()
+    ax.grid(True, which="both", linestyle="--", linewidth=0.5, color="gray")
+    fig.tight_layout()
+
     if filename:
-        plt.savefig(filename, dpi=300, bbox_inches="tight", transparent=True)
+        fig.savefig(filename, dpi=300, bbox_inches="tight", transparent=True)
+    if show:
+        plt.show()
+
+    return fig, ax
 
 
 def plot_stacked_stocks_over_time(
     stocks,
     t,
-    capacity_multiplier=0.4,
+    overlay_values=None,
+    overlay_label="Overlay",
+    overlay_color="black",
+    overlay_linestyle="--",
     ylim=None,
     title="Stacked Chart of SD Stocks Over Time",
     filename=None,
+    show=True,
 ):
     """
-    Plots a stacked area chart of SD stocks over time with a capacity line.
+    Plot a stacked area chart of the three SD stocks over time, with an
+    optional overlay line.
 
     Parameters
     ----------
@@ -1108,11 +1138,36 @@ def plot_stacked_stocks_over_time(
         List of 3 arrays representing the stock sizes P1, P2, P3.
     t : array-like
         Time vector.
-    capacity_multiplier : float, optional
-        Multiplier for plotting the dashed capacity line (default is 0.4).
+    overlay_values : array-like, optional
+        Optional line to overlay on the plot. This should be on a scale
+        comparable to the stock sizes.
+    overlay_label : str, optional
+        Label for the overlay line.
+    overlay_color : str, optional
+        Colour for the overlay line.
+    overlay_linestyle : str, optional
+        Line style for the overlay line.
+    ylim : tuple, optional
+        Y-axis limits for the plot (default is None).
     title : str
         Title of the plot.
+    filename : str, optional
+        Filename to save the plot (default is None, which does not save the plot).
+    show : bool, optional
+        Whether to display the plot (default is True).
+
+    Returns
+    -------
+    fig, ax : matplotlib figure and axes objects
+        The figure and axes objects for further customization if needed.
     """
+    if len(stocks) != 3:
+        raise ValueError("stocks must contain exactly 3 arrays.")
+    if any(len(stock) != len(t) for stock in stocks):
+        raise ValueError("Each stock array must have the same length as t.")
+    if overlay_values is not None and len(overlay_values) != len(t):
+        raise ValueError("overlay_values must have the same length as t.")
+    
     fig, ax = plt.subplots(figsize=(6, 4))
     colors = ["#FFC107", "#1E88E5", "#D81B60"]
 
@@ -1122,58 +1177,93 @@ def plot_stacked_stocks_over_time(
     ax.fill_between(t, P1 + P0, P0, color=colors[1], label="$P_2$ (Medium)")
     ax.fill_between(t, P2 + P1 + P0, P1 + P0, color=colors[2], label="$P_3$ (Low)")
 
-    total_pop = P0 + P1 + P2
-    ax.plot(
-        t, total_pop * capacity_multiplier, c="black", linestyle="--", label="Threshold"
-    )
+    if overlay_values is not None:
+        ax.plot(
+            t,
+            overlay_values,
+            color=overlay_color,
+            linestyle=overlay_linestyle,
+            label=overlay_label,
+        )
 
-    ax.set_xlabel("Time", fontsize=12)
-    ax.set_ylabel("Population in Stock", fontsize=12)
-    if ylim:
-        ax.set_ylim(ylim)
     ax.set_title(title, fontsize=14)
+    ax.set_xlabel("Time (days)", fontsize=12)
+    ax.set_ylabel("Population in stock", fontsize=12)
+
+    if ylim is not None:
+        ax.set_ylim(ylim)
+
     ax.legend(fontsize=10)
     ax.grid(True, which="both", linestyle="--", linewidth=0.5, color="gray")
-    plt.tight_layout()
-    plt.show()
+    fig.tight_layout()
+
     if filename:
         plt.savefig(filename, dpi=300, bbox_inches="tight", transparent=True)
+    if show:
+        plt.show()
+
+    return fig, ax
 
 
 def plot_referral_numbers_over_time(
     referral_numbers,
     t,
     ylim=None,
-    title="Referral Numbers Over Time (Illustrative)",
+    title="Referral Numbers Over Time",
     filename=None,
+    show=True
 ):
     """
-    Plots the number of referrals over time.
+    Plot referral numbers over time for the three SD stocks.
+
     Parameters
     ----------
-    referral_rates : list of arrays
-        List of 3 arrays representing the referral numbers R1, R2, R3.
+    referral_numbers : list of arrays
+        List of 3 arrays representing referral numbers for P1, P2, and P3.
     t : array-like
         Time vector.
-    ylim : tuple
-        Y-axis limits for the plot.
+    ylim : tuple, optional
+        Y-axis limits for the plot (default is None).
     title : str
         Title of the plot.
     filename : str, optional
         Filename to save the plot (default is None, which does not save the plot).
+    show : bool, optional
+        Whether to display the plot (default is True).
+
+    Returns
+    -------
+    fig, ax : matplotlib figure and axes objects
+        The figure and axes objects for further customization if needed.
     """
+    if len(referral_numbers) != 3:
+        raise ValueError(
+            "referral_numbers must contain exactly 3 arrays for P1, P2, and P3."
+        )
+    if any(len(referral) != len(t) for referral in referral_numbers):
+        raise ValueError("Each array must have the same length as t.")
+    
     fig, ax = plt.subplots(figsize=(6, 4))
     colors = ["#FFC107", "#1E88E5", "#D81B60"]
+    labels = ["$Λ_1(t)$ (High)", "$Λ_2(t)$ (Medium)", "$Λ_3(t)$ (Low)"]
+
     for i in range(len(referral_numbers)):
-        ax.plot(t, referral_numbers[i], label=f"$Λ_{i+1}(t)$", color=colors[i])
+        ax.plot(t, referral_numbers[i], label=labels[i], color=colors[i])
+
     ax.set_title(title, fontsize=16)
     ax.set_xlabel("Time (days)", fontsize=14)
-    ax.set_ylabel("Referral Rate", fontsize=14)
-    if ylim:
+    ax.set_ylabel("Referrals", fontsize=14)
+
+    if ylim is not None:
         ax.set_ylim(ylim)
-    ax.grid(True, which="both", linestyle="--", linewidth=0.5, color="gray")
+
     ax.legend(fontsize=10)
-    plt.tight_layout()
-    plt.show()
+    ax.grid(True, which="both", linestyle="--", linewidth=0.5, color="gray")
+    fig.tight_layout()
+
     if filename:
         plt.savefig(filename, dpi=300, bbox_inches="tight", transparent=True)
+    if show:
+        plt.show()
+
+    return fig, ax
