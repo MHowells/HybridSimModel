@@ -1869,35 +1869,6 @@ def test_time_phased_gatekeeping_raises_for_invalid_dimension():
         )
 
 
-def test_get_time_dependent_population_size():
-    population_sizes = [1000, 2000, 3000]
-    durations = [10, 20, 30]
-
-    population_fn = sd.get_time_dependent_population_size(
-        population_sizes=population_sizes, durations=durations
-    )
-
-    assert population_fn(0) == 1000
-    assert population_fn(9.9) == 1000
-    assert population_fn(10) == 2000
-    assert population_fn(20) == 2000
-    assert population_fn(30) == 3000
-    assert population_fn(100) == 3000
-
-    single_value_population_fn = sd.get_time_dependent_population_size(
-        population_sizes=1000
-    )
-
-    assert single_value_population_fn(0) == 1000
-    assert single_value_population_fn(9.9) == 1000
-    assert single_value_population_fn(10) == 1000
-
-    with pytest.raises(ValueError):
-        sd.get_time_dependent_population_size(
-            population_sizes=[1000, 2000], durations=[10]
-        )
-
-
 def test_get_time_dependent_population_size_returns_expected_size_within_each_period():
     population_fn = sd.get_time_dependent_population_size(
         population_sizes=[1000, 2000, 3000],
@@ -2029,31 +2000,75 @@ def test_get_time_dependent_incidence_rate_raises_value_error_for_mismatched_len
         )
 
 
-def test_get_time_dependent_recovery_rate():
-    recovery_proportions = [0.01, 0.02, 0.03]
-    durations = [10, 20, 30]
-
+def test_get_time_dependent_recovery_rate_returns_expected_rate_within_each_period():
     recovery_fn = sd.get_time_dependent_recovery_rate(
-        recovery_proportions=recovery_proportions, durations=durations
+        recovery_proportions=[0.01, 0.02, 0.03],
+        durations=[10, 20, 30],
     )
 
     stock_size = 10000
+
     assert recovery_fn(0, stock_size) == 100
     assert recovery_fn(9.9, stock_size) == 100
     assert recovery_fn(10, stock_size) == 200
-    assert recovery_fn(20, stock_size) == 200
+    assert recovery_fn(29.9, stock_size) == 200
     assert recovery_fn(30, stock_size) == 300
-    assert recovery_fn(100, stock_size) == 300
+    assert recovery_fn(59.9, stock_size) == 300
 
-    single_value_recovery_fn = sd.get_time_dependent_recovery_rate(
-        recovery_proportions=0.01
+
+def test_get_time_dependent_recovery_rate_returns_final_rate_after_all_periods():
+    recovery_fn = sd.get_time_dependent_recovery_rate(
+        recovery_proportions=[0.01, 0.02, 0.03],
+        durations=[10, 20, 30],
     )
 
-    assert single_value_recovery_fn(0, stock_size) == 100
-    assert single_value_recovery_fn(9.9, stock_size) == 100
-    assert single_value_recovery_fn(10, stock_size) == 100
+    stock_size = 10000
 
-    with pytest.raises(ValueError):
+    assert recovery_fn(60, stock_size) == 300
+    assert recovery_fn(100, stock_size) == 300
+
+
+def test_get_time_dependent_recovery_rate_returns_zero_when_stock_zero():
+    recovery_fn = sd.get_time_dependent_recovery_rate(
+        recovery_proportions=[0.01, 0.02, 0.03],
+        durations=[10, 20, 30],
+    )
+
+    assert recovery_fn(0, 0) == 0.0
+    assert recovery_fn(15, 0) == 0.0
+    assert recovery_fn(100, 0) == 0.0
+
+
+def test_get_time_dependent_recovery_rate_accepts_scalar_recovery_proportion_and_duration():
+    recovery_fn = sd.get_time_dependent_recovery_rate(
+        recovery_proportions=0.01,
+        durations=10,
+    )
+
+    stock_size = 10000
+
+    assert recovery_fn(0, stock_size) == 100
+    assert recovery_fn(9.9, stock_size) == 100
+    assert recovery_fn(10, stock_size) == 100
+    assert recovery_fn(100, stock_size) == 100
+
+
+def test_get_time_dependent_recovery_rate_uses_single_rate_indefinitely_when_duration_not_provided():
+    recovery_fn = sd.get_time_dependent_recovery_rate(recovery_proportions=0.01)
+
+    stock_size = 10000
+
+    assert recovery_fn(0, stock_size) == 100
+    assert recovery_fn(10, stock_size) == 100
+    assert recovery_fn(1000, stock_size) == 100
+
+
+def test_get_time_dependent_recovery_rate_raises_value_error_for_mismatched_lengths():
+    with pytest.raises(
+        ValueError,
+        match="The lengths of recovery_proportions and durations must match.",
+    ):
         sd.get_time_dependent_recovery_rate(
-            recovery_proportions=[0.01, 0.02], durations=[10]
+            recovery_proportions=[0.01, 0.02],
+            durations=[10],
         )
