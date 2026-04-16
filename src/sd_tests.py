@@ -728,6 +728,38 @@ def test_seasonal_gatekeeping_negative_capacity_clipped_to_zero():
     np.testing.assert_allclose(obtained, expected)
 
 
+def test_seasonal_gatekeeping_time_series_zero_capacity_continue_branch():
+    stocks = np.array([
+        [20.0, 20.0, 20.0],
+        [30.0, 30.0, 30.0],
+        [50.0, 50.0, 50.0],
+    ])
+    presenting_proportion = 0.4
+    t = np.array([0.0, 1.0, 2.0])
+
+    gatekeeping = sd.seasonal_gatekeeping(
+        baseline=1.0,
+        amplitude=1.0,
+        period=4.0,
+        phase_shift=3.0,
+    )
+
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(axis=0),
+        presenting_proportion=presenting_proportion,
+        t=t,
+    )
+
+    expected = np.array([
+        [0.0, 1.0, 2.0],
+        [0.0, 0.0, 0.0],
+        [0.0, 0.0, 0.0],
+    ])
+
+    np.testing.assert_allclose(obtained, expected)
+
+
 def test_seasonal_gatekeeping_raises_for_invalid_dimension():
     gatekeeping = sd.seasonal_gatekeeping(
         baseline=8.0,
