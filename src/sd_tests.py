@@ -1898,33 +1898,77 @@ def test_get_time_dependent_population_size():
         )
 
 
-def test_get_time_dependent_incidence_rate():
-    incidence_proportions = [0.01, 0.02, 0.03]
-    durations = [10, 20, 30]
-
+def test_get_time_dependent_incidence_rate_returns_expected_rate_within_each_period():
     incidence_fn = sd.get_time_dependent_incidence_rate(
-        incidence_proportions=incidence_proportions, durations=durations
+        incidence_proportions=[0.01, 0.02, 0.03],
+        durations=[10, 20, 30],
     )
 
     population_size = 10000
+
     assert incidence_fn(0, population_size) == 100
     assert incidence_fn(9.9, population_size) == 100
     assert incidence_fn(10, population_size) == 200
-    assert incidence_fn(20, population_size) == 200
+    assert incidence_fn(29.9, population_size) == 200
     assert incidence_fn(30, population_size) == 300
-    assert incidence_fn(100, population_size) == 300
+    assert incidence_fn(59.9, population_size) == 300
 
-    single_value_incidence_fn = sd.get_time_dependent_incidence_rate(
-        incidence_proportions=0.01
+
+def test_get_time_dependent_incidence_rate_returns_final_rate_after_all_periods():
+    incidence_fn = sd.get_time_dependent_incidence_rate(
+        incidence_proportions=[0.01, 0.02, 0.03],
+        durations=[10, 20, 30],
     )
 
-    assert single_value_incidence_fn(0, population_size) == 100
-    assert single_value_incidence_fn(9.9, population_size) == 100
-    assert single_value_incidence_fn(10, population_size) == 100
+    population_size = 10000
 
-    with pytest.raises(ValueError):
+    assert incidence_fn(60, population_size) == 300
+    assert incidence_fn(100, population_size) == 300
+
+
+def test_get_time_dependent_incidence_rate_returns_zero_when_population_zero():
+    incidence_fn = sd.get_time_dependent_incidence_rate(
+        incidence_proportions=[0.01, 0.02, 0.03],
+        durations=[10, 20, 30],
+    )
+
+    assert incidence_fn(0, 0) == 0.0
+    assert incidence_fn(15, 0) == 0.0
+    assert incidence_fn(100, 0) == 0.0
+
+
+def test_get_time_dependent_incidence_rate_accepts_scalar_incidence_proportion_and_duration():
+    incidence_fn = sd.get_time_dependent_incidence_rate(
+        incidence_proportions=0.01,
+        durations=10,
+    )
+
+    population_size = 10000
+
+    assert incidence_fn(0, population_size) == 100
+    assert incidence_fn(9.9, population_size) == 100
+    assert incidence_fn(10, population_size) == 100
+    assert incidence_fn(100, population_size) == 100
+
+
+def test_get_time_dependent_incidence_rate_uses_single_rate_indefinitely_when_duration_not_provided():
+    incidence_fn = sd.get_time_dependent_incidence_rate(incidence_proportions=0.01)
+
+    population_size = 10000
+
+    assert incidence_fn(0, population_size) == 100
+    assert incidence_fn(10, population_size) == 100
+    assert incidence_fn(1000, population_size) == 100
+
+
+def test_get_time_dependent_incidence_rate_raises_value_error_for_mismatched_lengths():
+    with pytest.raises(
+        ValueError,
+        match="The lengths of incidence_proportions and durations must match.",
+    ):
         sd.get_time_dependent_incidence_rate(
-            incidence_proportions=[0.01, 0.02], durations=[10]
+            incidence_proportions=[0.01, 0.02],
+            durations=[10],
         )
 
 
