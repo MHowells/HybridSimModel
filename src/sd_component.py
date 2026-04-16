@@ -658,6 +658,113 @@ def severity_responsive_gatekeeping(
     return gatekeeping_function
 
 
+def time_phased_gatekeeping(change_times, gatekeeping_policies):
+    """
+    Gatekeeping function that switches between multiple gatekeeping policies
+    at specified change times.
+
+    Parameters
+    ----------
+    change_times : list or array of floats
+        Sorted times at which the gatekeeping policy changes.
+        If there are n policies, there must be n - 1 change times.
+    gatekeeping_policies : list of functions
+        Gatekeeping functions to apply in each phase.
+
+    Returns
+    -------
+    function
+        Function to calculate lambda values for each stock.
+    """
+    change_times = np.asarray(change_times, dtype=float)
+
+    if len(gatekeeping_policies) != len(change_times) + 1:
+        raise ValueError(
+            "There must be exactly one more gatekeeping policy than change times."
+        )
+
+    if np.any(np.diff(change_times) < 0):
+        raise ValueError("change_times must be sorted in non-decreasing order.")
+
+    def gatekeeping_function(stocks, population, presenting_proportion, t):
+        """
+        Calculate referral flows under a multi-phase gatekeeping policy.
+
+        Parameters
+        ----------
+        stocks : list/array of scalars or arrays
+            Stock levels for each severity group.
+        population : float or array
+            Total population at time t.
+        presenting_proportion : float in [0, 1]
+            Proportion of each stock presenting to primary care.
+        t : float or array
+            Time input used to determine which policy phase applies.
+
+        Returns
+        -------
+        np.ndarray
+            Referral flows for each stock, either as:
+            - shape (n_groups,) for scalar input
+            - shape (n_groups, T) for time-series input
+        """
+        stocks = np.array(stocks, dtype=float)
+        t = np.asarray(t)
+
+        is_scalar = np.isscalar(t) or t.shape == ()
+
+        def get_policy_index(time_point):
+            policy_idx = 0
+            for change_time in change_times:
+                if time_point < change_time:
+                    break
+                policy_idx += 1
+            return policy_idx
+
+        if is_scalar:
+            policy_idx = get_policy_index(t)
+            selected_policy = gatekeeping_policies[policy_idx]
+
+            return np.asarray(
+                selected_policy(
+                    stocks=stocks,
+                    population=population,
+                    presenting_proportion=presenting_proportion,
+                    t=t,
+                ),
+                dtype=float,
+            )
+
+        elif stocks.ndim == 2:
+            n_groups, n_times = stocks.shape
+            lambdas = np.zeros((n_groups, n_times))
+
+            for k in range(n_times):
+                stocks_k = stocks[:, k]
+                population_k = population[k] if np.ndim(population) > 0 else population
+                t_k = t[k]
+
+                policy_idx = get_policy_index(t_k)
+                selected_policy = gatekeeping_policies[policy_idx]
+
+                lambdas[:, k] = np.asarray(
+                    selected_policy(
+                        stocks=stocks_k,
+                        population=population_k,
+                        presenting_proportion=presenting_proportion,
+                        t=t_k,
+                    ),
+                    dtype=float,
+                )
+
+            return lambdas
+
+        else:
+            raise ValueError("stocks must be a 1D or 2D array-like structure.")
+
+    return gatekeeping_function
+
+
 class SD:
     """
     A class to hold the SD component.
