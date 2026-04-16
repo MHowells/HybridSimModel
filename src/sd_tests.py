@@ -1206,6 +1206,34 @@ def test_partial_priority_gatekeeping_full_relaxation_matches_fixed_capacity_pro
     np.testing.assert_allclose(obtained_blended, obtained_proportional)
 
 
+def test_partial_priority_gatekeeping_time_series_zero_demand_branch():
+    stocks = np.array([
+        [0.0, 20.0, 20.0],
+        [0.0, 30.0, 25.0],
+        [0.0, 50.0, 55.0],
+    ])
+    presenting_proportion = 0.4
+    capacity = 15.0
+    priority_relaxation = 0.5
+
+    gatekeeping = sd.partial_priority_gatekeeping(capacity, priority_relaxation)
+
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(axis=0),
+        presenting_proportion=presenting_proportion,
+        t=np.array([0.0, 1.0, 2.0]),
+    )
+
+    expected = np.array([
+        [0.0, 5.5,   5.5],
+        [0.0, 5.75,  5.375],
+        [0.0, 3.75,  4.125],
+    ])
+
+    np.testing.assert_allclose(obtained, expected)
+
+
 def test_severity_responsive_gatekeeping_returns_callable():
     gatekeeping = sd.severity_responsive_gatekeeping(
         severity_threshold=0.3,
