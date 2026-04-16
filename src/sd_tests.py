@@ -972,6 +972,208 @@ def test_severity_specific_gatekeeping_raises_for_invalid_dimension():
         )
 
 
+def test_partial_priority_gatekeeping_returns_callable():
+    gatekeeping = sd.partial_priority_gatekeeping(capacity=15.0, priority_relaxation=0.5)
+    assert callable(gatekeeping)
+
+
+def test_partial_priority_gatekeeping_scalar_full_strict_priority():
+    stocks = np.array([20.0, 30.0, 50.0])
+    presenting_proportion = 0.4
+    capacity = 15.0
+    priority_relaxation = 0.0
+
+    gatekeeping = sd.partial_priority_gatekeeping(capacity, priority_relaxation)
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected = np.array([8.0, 7.0, 0.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_partial_priority_gatekeeping_scalar_full_proportional():
+    stocks = np.array([20.0, 30.0, 50.0])
+    presenting_proportion = 0.4
+    capacity = 15.0
+    priority_relaxation = 1.0
+
+    gatekeeping = sd.partial_priority_gatekeeping(capacity, priority_relaxation)
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected = np.array([3.0, 4.5, 7.5])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_partial_priority_gatekeeping_scalar_halfway_blend():
+    stocks = np.array([20.0, 30.0, 50.0])
+    presenting_proportion = 0.4
+    capacity = 15.0
+    priority_relaxation = 0.5
+
+    gatekeeping = sd.partial_priority_gatekeeping(capacity, priority_relaxation)
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected = np.array([5.5, 5.75, 3.75])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_partial_priority_gatekeeping_scalar_no_capacity():
+    stocks = np.array([20.0, 30.0, 50.0])
+    presenting_proportion = 0.4
+    capacity = 0.0
+    priority_relaxation = 0.5
+
+    gatekeeping = sd.partial_priority_gatekeeping(capacity, priority_relaxation)
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected = np.array([0.0, 0.0, 0.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_partial_priority_gatekeeping_scalar_empty_stocks():
+    stocks = np.array([0.0, 0.0, 0.0])
+    presenting_proportion = 0.4
+    capacity = 15.0
+    priority_relaxation = 0.5
+
+    gatekeeping = sd.partial_priority_gatekeeping(capacity, priority_relaxation)
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected = np.array([0.0, 0.0, 0.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_partial_priority_gatekeeping_scalar_full_capacity():
+    stocks = np.array([20.0, 30.0, 50.0])
+    presenting_proportion = 0.4
+    capacity = 40.0
+    priority_relaxation = 0.5
+
+    gatekeeping = sd.partial_priority_gatekeeping(capacity, priority_relaxation)
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected = np.array([8.0, 12.0, 20.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_partial_priority_gatekeeping_time_series_case():
+    stocks = np.array([
+        [20.0, 20.0, 20.0],
+        [30.0, 25.0, 20.0],
+        [50.0, 55.0, 60.0],
+    ])
+    presenting_proportion = 0.4
+    capacity = 15.0
+    priority_relaxation = 0.5
+
+    gatekeeping = sd.partial_priority_gatekeeping(capacity, priority_relaxation)
+
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(axis=0),
+        presenting_proportion=presenting_proportion,
+        t=np.array([0.0, 1.0, 2.0]),
+    )
+
+    expected = np.array([
+        [5.5, 5.5, 5.5],
+        [5.75, 5.375, 5.0],
+        [3.75, 4.125, 4.5],
+    ])
+
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_partial_priority_gatekeeping_raises_for_invalid_dimension():
+    gatekeeping = sd.partial_priority_gatekeeping(capacity=15.0, priority_relaxation=0.5)
+    stocks = np.zeros((3, 2, 2))
+
+    with pytest.raises(ValueError, match="stocks must be a 1D or 2D array-like structure."):
+        gatekeeping(
+            stocks=stocks,
+            population=1.0,
+            presenting_proportion=0.4,
+            t=0.0,
+        )
+
+
+def test_partial_priority_gatekeeping_zero_relaxation_matches_fixed_capacity_strict():
+    stocks = np.array([20.0, 30.0, 50.0])
+    presenting_proportion = 0.4
+    capacity = 15.0
+
+    blended = sd.partial_priority_gatekeeping(capacity=capacity, priority_relaxation=0.0)
+    strict = sd.fixed_capacity_strict_gatekeeping(capacity=capacity)
+
+    obtained_blended = blended(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+    obtained_strict = strict(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    np.testing.assert_allclose(obtained_blended, obtained_strict)
+
+
+def test_partial_priority_gatekeeping_full_relaxation_matches_fixed_capacity_proportional():
+    stocks = np.array([20.0, 30.0, 50.0])
+    presenting_proportion = 0.4
+    capacity = 15.0
+
+    blended = sd.partial_priority_gatekeeping(capacity=capacity, priority_relaxation=1.0)
+    proportional = sd.fixed_capacity_proportional_gatekeeping(capacity=capacity)
+
+    obtained_blended = blended(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+    obtained_proportional = proportional(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    np.testing.assert_allclose(obtained_blended, obtained_proportional)
+
+
 def test_get_time_dependent_population_size():
     population_sizes = [1000, 2000, 3000]
     durations = [10, 20, 30]
