@@ -1416,6 +1416,289 @@ def test_severity_responsive_gatekeeping_raises_for_invalid_dimension():
         )
 
 
+def test_time_phased_gatekeeping_returns_callable():
+    gatekeeping = sd.time_phased_gatekeeping(
+        change_times=[10.0],
+        gatekeeping_policies=[
+            sd.fixed_capacity_strict_gatekeeping(capacity=15.0),
+            sd.fixed_capacity_proportional_gatekeeping(capacity=15.0),
+        ],
+    )
+    assert callable(gatekeeping)
+
+
+def test_time_phased_gatekeeping_raises_for_wrong_number_of_policies():
+    with pytest.raises(
+        ValueError,
+        match="There must be exactly one more gatekeeping policy than change times.",
+    ):
+        sd.time_phased_gatekeeping(
+            change_times=[10.0, 20.0],
+            gatekeeping_policies=[
+                sd.fixed_capacity_strict_gatekeeping(capacity=15.0),
+                sd.fixed_capacity_proportional_gatekeeping(capacity=15.0),
+            ],
+        )
+
+
+def test_time_phased_gatekeeping_raises_for_unsorted_change_times():
+    with pytest.raises(
+        ValueError,
+        match="change_times must be sorted in non-decreasing order.",
+    ):
+        sd.time_phased_gatekeeping(
+            change_times=[20.0, 10.0],
+            gatekeeping_policies=[
+                sd.fixed_capacity_strict_gatekeeping(capacity=15.0),
+                sd.fixed_capacity_proportional_gatekeeping(capacity=15.0),
+                sd.proportional_access_gatekeeping(threshold=0.5),
+            ],
+        )
+
+
+def test_time_phased_gatekeeping_scalar_before_first_change_uses_first_policy():
+    stocks = np.array([20.0, 30.0, 50.0])
+    presenting_proportion = 0.4
+
+    phase_one = sd.fixed_capacity_strict_gatekeeping(capacity=15.0)
+    phase_two = sd.fixed_capacity_proportional_gatekeeping(capacity=15.0)
+
+    gatekeeping = sd.time_phased_gatekeeping(
+        change_times=[10.0],
+        gatekeeping_policies=[phase_one, phase_two],
+    )
+
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=5.0,
+    )
+
+    expected = phase_one(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=5.0,
+    )
+
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_time_phased_gatekeeping_scalar_at_change_uses_next_policy():
+    stocks = np.array([20.0, 30.0, 50.0])
+    presenting_proportion = 0.4
+
+    phase_one = sd.fixed_capacity_strict_gatekeeping(capacity=15.0)
+    phase_two = sd.fixed_capacity_proportional_gatekeeping(capacity=15.0)
+
+    gatekeeping = sd.time_phased_gatekeeping(
+        change_times=[10.0],
+        gatekeeping_policies=[phase_one, phase_two],
+    )
+
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=10.0,
+    )
+
+    expected = phase_two(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=10.0,
+    )
+
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_time_phased_gatekeeping_scalar_after_last_change_uses_final_policy():
+    stocks = np.array([20.0, 30.0, 50.0])
+    presenting_proportion = 0.4
+
+    phase_one = sd.fixed_capacity_strict_gatekeeping(capacity=15.0)
+    phase_two = sd.fixed_capacity_proportional_gatekeeping(capacity=15.0)
+    phase_three = sd.proportional_access_gatekeeping(threshold=0.5)
+
+    gatekeeping = sd.time_phased_gatekeeping(
+        change_times=[10.0, 20.0],
+        gatekeeping_policies=[phase_one, phase_two, phase_three],
+    )
+
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=25.0,
+    )
+
+    expected = phase_three(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=25.0,
+    )
+
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_time_phased_gatekeeping_scalar_between_changes_uses_middle_policy():
+    stocks = np.array([20.0, 30.0, 50.0])
+    presenting_proportion = 0.4
+
+    phase_one = sd.fixed_capacity_strict_gatekeeping(capacity=15.0)
+    phase_two = sd.fixed_capacity_proportional_gatekeeping(capacity=15.0)
+    phase_three = sd.proportional_access_gatekeeping(threshold=0.5)
+
+    gatekeeping = sd.time_phased_gatekeeping(
+        change_times=[10.0, 20.0],
+        gatekeeping_policies=[phase_one, phase_two, phase_three],
+    )
+
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=15.0,
+    )
+
+    expected = phase_two(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=15.0,
+    )
+
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_time_phased_gatekeeping_time_series_crosses_multiple_phases():
+    stocks = np.array([
+        [20.0, 20.0, 20.0],
+        [30.0, 25.0, 20.0],
+        [50.0, 55.0, 60.0],
+    ])
+    presenting_proportion = 0.4
+    t = np.array([5.0, 15.0, 25.0])
+
+    phase_one = sd.fixed_capacity_strict_gatekeeping(capacity=15.0)
+    phase_two = sd.fixed_capacity_proportional_gatekeeping(capacity=15.0)
+    phase_three = sd.proportional_access_gatekeeping(threshold=0.5)
+
+    gatekeeping = sd.time_phased_gatekeeping(
+        change_times=[10.0, 20.0],
+        gatekeeping_policies=[phase_one, phase_two, phase_three],
+    )
+
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(axis=0),
+        presenting_proportion=presenting_proportion,
+        t=t,
+    )
+
+    expected = np.column_stack([
+        phase_one(
+            stocks=stocks[:, 0],
+            population=stocks[:, 0].sum(),
+            presenting_proportion=presenting_proportion,
+            t=t[0],
+        ),
+        phase_two(
+            stocks=stocks[:, 1],
+            population=stocks[:, 1].sum(),
+            presenting_proportion=presenting_proportion,
+            t=t[1],
+        ),
+        phase_three(
+            stocks=stocks[:, 2],
+            population=stocks[:, 2].sum(),
+            presenting_proportion=presenting_proportion,
+            t=t[2],
+        ),
+    ])
+
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_time_phased_gatekeeping_scalar_empty_stocks():
+    stocks = np.array([0.0, 0.0, 0.0])
+    presenting_proportion = 0.4
+
+    phase_one = sd.fixed_capacity_strict_gatekeeping(capacity=15.0)
+    phase_two = sd.fixed_capacity_proportional_gatekeeping(capacity=15.0)
+
+    gatekeeping = sd.time_phased_gatekeeping(
+        change_times=[10.0],
+        gatekeeping_policies=[phase_one, phase_two],
+    )
+
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=0.0,
+        presenting_proportion=presenting_proportion,
+        t=5.0,
+    )
+
+    expected = np.array([0.0, 0.0, 0.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_time_phased_gatekeeping_single_policy_no_changes_matches_base_policy():
+    stocks = np.array([
+        [20.0, 20.0, 20.0],
+        [30.0, 25.0, 20.0],
+        [50.0, 55.0, 60.0],
+    ])
+    presenting_proportion = 0.4
+    t = np.array([0.0, 10.0, 20.0])
+
+    base_policy = sd.fixed_capacity_strict_gatekeeping(capacity=15.0)
+
+    wrapped_policy = sd.time_phased_gatekeeping(
+        change_times=[],
+        gatekeeping_policies=[base_policy],
+    )
+
+    obtained_wrapped = wrapped_policy(
+        stocks=stocks,
+        population=stocks.sum(axis=0),
+        presenting_proportion=presenting_proportion,
+        t=t,
+    )
+
+    obtained_base = base_policy(
+        stocks=stocks,
+        population=stocks.sum(axis=0),
+        presenting_proportion=presenting_proportion,
+        t=t,
+    )
+
+    np.testing.assert_allclose(obtained_wrapped, obtained_base)
+
+
+def test_time_phased_gatekeeping_raises_for_invalid_dimension():
+    gatekeeping = sd.time_phased_gatekeeping(
+        change_times=[10.0],
+        gatekeeping_policies=[
+            sd.fixed_capacity_strict_gatekeeping(capacity=15.0),
+            sd.fixed_capacity_proportional_gatekeeping(capacity=15.0),
+        ],
+    )
+    stocks = np.zeros((3, 2, 2))
+
+    with pytest.raises(ValueError, match="stocks must be a 1D or 2D array-like structure."):
+        gatekeeping(
+            stocks=stocks,
+            population=1.0,
+            presenting_proportion=0.4,
+            t=5.0,
+        )
+
+
+
 def test_get_time_dependent_population_size():
     population_sizes = [1000, 2000, 3000]
     durations = [10, 20, 30]
