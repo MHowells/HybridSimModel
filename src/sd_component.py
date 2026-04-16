@@ -156,7 +156,7 @@ def fixed_capacity_strict_gatekeeping(capacity):
 def fixed_capacity_proportional_gatekeeping(capacity):
     """
     Gatekeeping function with a fixed total referral capacity per time step,
-    allocated proportionally across severity groups according to presenting 
+    allocated proportionally across severity groups according to presenting
     demand.
 
     Parameters
@@ -178,7 +178,7 @@ def fixed_capacity_proportional_gatekeeping(capacity):
         Parameters
         ----------
         stocks : list/array of scalars or arrays
-            Stock levels for each severity group, ordered by priority 
+            Stock levels for each severity group, ordered by priority
             (e.g. high, medium, low).
         population : float or array
             Included for compatibility with the SD framework, but unused.
@@ -280,7 +280,7 @@ def seasonal_gatekeeping(baseline=8, amplitude=2, period=365, phase_shift=0):
         if stocks.ndim == 1:
             capacity = max(
                 0.0,
-                baseline + amplitude * np.sin(2 * np.pi * (t + phase_shift) / period)
+                baseline + amplitude * np.sin(2 * np.pi * (t + phase_shift) / period),
             )
 
             lambdas = np.zeros(len(stocks))
@@ -303,7 +303,7 @@ def seasonal_gatekeeping(baseline=8, amplitude=2, period=365, phase_shift=0):
 
             capacities = np.maximum(
                 0.0,
-                baseline + amplitude * np.sin(2 * np.pi * (t + phase_shift) / period)
+                baseline + amplitude * np.sin(2 * np.pi * (t + phase_shift) / period),
             )
 
             for i in range(n_times):
@@ -328,7 +328,7 @@ def seasonal_gatekeeping(baseline=8, amplitude=2, period=365, phase_shift=0):
 
 def proportional_access_gatekeeping(threshold):
     """
-    Refers the same proportion of each severity stock that presents to primary 
+    Refers the same proportion of each severity stock that presents to primary
     care.
 
     Parameters
@@ -341,6 +341,7 @@ def proportional_access_gatekeeping(threshold):
     function
         Function to calculate lambda values for each stock.
     """
+
     def gatekeeping_function(stocks, population, presenting_proportion, t):
         """
         Calculate referral flows under a proportional access policy, where the
@@ -389,7 +390,7 @@ def severity_specific_gatekeeping(proportions):
     Parameters
     ----------
     proportions : list of floats
-        Proportions for each stock, e.g., [0.5, 0.3, 0.3] for high, medium, low 
+        Proportions for each stock, e.g., [0.5, 0.3, 0.3] for high, medium, low
         severity
 
     Returns
@@ -406,7 +407,7 @@ def severity_specific_gatekeeping(proportions):
         Parameters
         ----------
         stocks : list/array of scalars or arrays
-            Stock levels for each severity group, ordered by priority 
+            Stock levels for each severity group, ordered by priority
             (e.g. high, medium, low).
         population : float or array
             Included for compatibility with the SD framework, but unused.
@@ -491,7 +492,7 @@ def partial_priority_gatekeeping(capacity, priority_relaxation):
             n_groups = len(stocks)
             strict_lambdas = np.zeros(n_groups)
             remaining_capacity = capacity
-            
+
             for i in range(n_groups):
                 allowed = min(demand[i], remaining_capacity)
                 strict_lambdas[i] = allowed
@@ -505,9 +506,8 @@ def partial_priority_gatekeeping(capacity, priority_relaxation):
                 proportional_lambdas = np.minimum(proportional_lambdas, demand)
 
             lambdas = (
-                (1 - priority_relaxation) * strict_lambdas
-                + priority_relaxation * proportional_lambdas
-            )
+                1 - priority_relaxation
+            ) * strict_lambdas + priority_relaxation * proportional_lambdas
 
             return lambdas
 
@@ -534,9 +534,8 @@ def partial_priority_gatekeeping(capacity, priority_relaxation):
                     proportional_lambdas = np.minimum(proportional_lambdas, d)
 
                 lambdas[:, k] = (
-                    (1 - priority_relaxation) * strict_lambdas
-                    + priority_relaxation * proportional_lambdas
-                )
+                    1 - priority_relaxation
+                ) * strict_lambdas + priority_relaxation * proportional_lambdas
 
             return lambdas
 
@@ -964,7 +963,9 @@ def get_time_dependent_incidence_rate(incidence_proportions, durations=np.NaN):
         durations = [durations]
 
     if len(incidence_proportions) != len(durations):
-        raise ValueError("The lengths of incidence_proportions and durations must match.")
+        raise ValueError(
+            "The lengths of incidence_proportions and durations must match."
+        )
 
     change_points = [0]
     for d in durations:
@@ -990,8 +991,8 @@ def get_time_dependent_incidence_rate(incidence_proportions, durations=np.NaN):
             return 0.0
         for i in range(len(durations)):
             if change_points[i] <= t < change_points[i + 1]:
-                return (incidence_proportions[i] * population_size)
-        return (incidence_proportions[-1] * population_size)
+                return incidence_proportions[i] * population_size
+        return incidence_proportions[-1] * population_size
 
     return incidence_function
 
@@ -1020,7 +1021,9 @@ def get_time_dependent_recovery_rate(recovery_proportions, durations=np.NaN):
         durations = [durations]
 
     if len(recovery_proportions) != len(durations):
-        raise ValueError("The lengths of recovery_proportions and durations must match.")
+        raise ValueError(
+            "The lengths of recovery_proportions and durations must match."
+        )
 
     change_points = [0]
     for d in durations:

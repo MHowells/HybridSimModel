@@ -139,11 +139,13 @@ def test_strict_priority_gatekeeping_scalar_all_capacity_to_first_group():
 
 
 def test_strict_priority_gatekeeping_time_series_case():
-    stocks = np.array([
-        [20.0, 20.0, 20.0],
-        [30.0, 25.0, 20.0],
-        [50.0, 55.0, 60.0],
-    ])
+    stocks = np.array(
+        [
+            [20.0, 20.0, 20.0],
+            [30.0, 25.0, 20.0],
+            [50.0, 55.0, 60.0],
+        ]
+    )
     presenting_proportion = 0.4
 
     gatekeeping = sd.strict_priority_gatekeeping(threshold=0.5)
@@ -155,11 +157,13 @@ def test_strict_priority_gatekeeping_time_series_case():
         t=np.array([0.0, 1.0, 2.0]),
     )
 
-    expected = np.array([
-        [8.0, 8.0, 8.0],
-        [12.0, 10.0, 8.0],
-        [0.0, 2.0, 4.0],
-    ])
+    expected = np.array(
+        [
+            [8.0, 8.0, 8.0],
+            [12.0, 10.0, 8.0],
+            [0.0, 2.0, 4.0],
+        ]
+    )
 
     np.testing.assert_allclose(obtained, expected)
 
@@ -168,7 +172,9 @@ def test_strict_priority_gatekeeping_raises_for_invalid_dimension():
     gatekeeping = sd.strict_priority_gatekeeping(threshold=0.5)
     stocks = np.zeros((3, 2, 2))
 
-    with pytest.raises(ValueError, match="stocks must be a 1D or 2D array-like structure."):
+    with pytest.raises(
+        ValueError, match="stocks must be a 1D or 2D array-like structure."
+    ):
         gatekeeping(
             stocks=stocks,
             population=1.0,
@@ -302,11 +308,13 @@ def test_fixed_capacity_strict_gatekeeping_scalar_all_capacity_to_first_group():
 
 
 def test_fixed_capacity_strict_gatekeeping_time_series_case():
-    stocks = np.array([
-        [20.0, 20.0, 20.0],
-        [30.0, 25.0, 20.0],
-        [50.0, 55.0, 60.0],
-    ])
+    stocks = np.array(
+        [
+            [20.0, 20.0, 20.0],
+            [30.0, 25.0, 20.0],
+            [50.0, 55.0, 60.0],
+        ]
+    )
     presenting_proportion = 0.4
     capacity = 15.0
 
@@ -319,11 +327,13 @@ def test_fixed_capacity_strict_gatekeeping_time_series_case():
         t=np.array([0.0, 1.0, 2.0]),
     )
 
-    expected = np.array([
-        [8.0, 8.0, 8.0],
-        [7.0, 7.0, 7.0],
-        [0.0, 0.0, 0.0],
-    ])
+    expected = np.array(
+        [
+            [8.0, 8.0, 8.0],
+            [7.0, 7.0, 7.0],
+            [0.0, 0.0, 0.0],
+        ]
+    )
 
     np.testing.assert_allclose(obtained, expected)
 
@@ -332,7 +342,9 @@ def test_fixed_capacity_strict_gatekeeping_raises_for_invalid_dimension():
     gatekeeping = sd.fixed_capacity_strict_gatekeeping(capacity=15.0)
     stocks = np.zeros((3, 2, 2))
 
-    with pytest.raises(ValueError, match="stocks must be a 1D or 2D array-like structure."):
+    with pytest.raises(
+        ValueError, match="stocks must be a 1D or 2D array-like structure."
+    ):
         gatekeeping(
             stocks=stocks,
             population=1.0,
@@ -461,11 +473,13 @@ def test_fixed_capacity_proportional_gatekeeping_scalar_order_invariant():
 
 
 def test_fixed_capacity_proportional_gatekeeping_time_series_case():
-    stocks = np.array([
-        [20.0, 20.0, 20.0],
-        [30.0, 25.0, 20.0],
-        [50.0, 55.0, 60.0],
-    ])
+    stocks = np.array(
+        [
+            [20.0, 20.0, 20.0],
+            [30.0, 25.0, 20.0],
+            [50.0, 55.0, 60.0],
+        ]
+    )
     presenting_proportion = 0.4
     capacity = 15.0
 
@@ -478,11 +492,13 @@ def test_fixed_capacity_proportional_gatekeeping_time_series_case():
         t=np.array([0.0, 1.0, 2.0]),
     )
 
-    expected = np.array([
-        [3.0, 3.0, 3.0],
-        [4.5, 3.75, 3.0],
-        [7.5, 8.25, 9.0],
-    ])
+    expected = np.array(
+        [
+            [3.0, 3.0, 3.0],
+            [4.5, 3.75, 3.0],
+            [7.5, 8.25, 9.0],
+        ]
+    )
 
     np.testing.assert_allclose(obtained, expected)
 
@@ -491,7 +507,9 @@ def test_fixed_capacity_proportional_gatekeeping_raises_for_invalid_dimension():
     gatekeeping = sd.fixed_capacity_proportional_gatekeeping(capacity=15.0)
     stocks = np.zeros((3, 2, 2))
 
-    with pytest.raises(ValueError, match="stocks must be a 1D or 2D array-like structure."):
+    with pytest.raises(
+        ValueError, match="stocks must be a 1D or 2D array-like structure."
+    ):
         gatekeeping(
             stocks=stocks,
             population=1.0,
@@ -501,7 +519,9 @@ def test_fixed_capacity_proportional_gatekeeping_raises_for_invalid_dimension():
 
 
 def test_seasonal_gatekeeping_returns_callable():
-    gatekeeping = sd.seasonal_gatekeeping(baseline=8, amplitude=2, period=365, phase_shift=0)
+    gatekeeping = sd.seasonal_gatekeeping(
+        baseline=8, amplitude=2, period=365, phase_shift=0
+    )
     assert callable(gatekeeping)
 
 
@@ -638,11 +658,13 @@ def test_seasonal_gatekeeping_scalar_full_capacity():
 
 
 def test_seasonal_gatekeeping_time_series_case():
-    stocks = np.array([
-        [20.0, 20.0, 20.0],
-        [30.0, 25.0, 20.0],
-        [50.0, 55.0, 60.0],
-    ])
+    stocks = np.array(
+        [
+            [20.0, 20.0, 20.0],
+            [30.0, 25.0, 20.0],
+            [50.0, 55.0, 60.0],
+        ]
+    )
     presenting_proportion = 0.4
     t = np.array([0.0, 1.0, 2.0])
 
@@ -660,11 +682,13 @@ def test_seasonal_gatekeeping_time_series_case():
         t=t,
     )
 
-    expected = np.array([
-        [8.0, 8.0, 8.0],
-        [2.0, 7.0, 2.0],
-        [0.0, 0.0, 0.0],
-    ])
+    expected = np.array(
+        [
+            [8.0, 8.0, 8.0],
+            [2.0, 7.0, 2.0],
+            [0.0, 0.0, 0.0],
+        ]
+    )
 
     np.testing.assert_allclose(obtained, expected)
 
@@ -729,11 +753,13 @@ def test_seasonal_gatekeeping_negative_capacity_clipped_to_zero():
 
 
 def test_seasonal_gatekeeping_time_series_zero_capacity_continue_branch():
-    stocks = np.array([
-        [20.0, 20.0, 20.0],
-        [30.0, 30.0, 30.0],
-        [50.0, 50.0, 50.0],
-    ])
+    stocks = np.array(
+        [
+            [20.0, 20.0, 20.0],
+            [30.0, 30.0, 30.0],
+            [50.0, 50.0, 50.0],
+        ]
+    )
     presenting_proportion = 0.4
 
     gatekeeping = sd.seasonal_gatekeeping(
@@ -750,11 +776,13 @@ def test_seasonal_gatekeeping_time_series_zero_capacity_continue_branch():
         t=np.array([0.0, 1.0, 2.0]),
     )
 
-    expected = np.array([
-        [0.0, 1.0, 2.0],
-        [0.0, 0.0, 0.0],
-        [0.0, 0.0, 0.0],
-    ])
+    expected = np.array(
+        [
+            [0.0, 1.0, 2.0],
+            [0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0],
+        ]
+    )
 
     np.testing.assert_allclose(obtained, expected)
 
@@ -768,7 +796,9 @@ def test_seasonal_gatekeeping_raises_for_invalid_dimension():
     )
     stocks = np.zeros((3, 2, 2))
 
-    with pytest.raises(ValueError, match="stocks must be a 1D or 2D array-like structure."):
+    with pytest.raises(
+        ValueError, match="stocks must be a 1D or 2D array-like structure."
+    ):
         gatekeeping(
             stocks=stocks,
             population=1.0,
@@ -851,11 +881,13 @@ def test_proportional_access_gatekeeping_scalar_empty_stocks():
 
 
 def test_proportional_access_gatekeeping_time_series_case():
-    stocks = np.array([
-        [20.0, 20.0, 20.0],
-        [30.0, 25.0, 20.0],
-        [50.0, 55.0, 60.0],
-    ])
+    stocks = np.array(
+        [
+            [20.0, 20.0, 20.0],
+            [30.0, 25.0, 20.0],
+            [50.0, 55.0, 60.0],
+        ]
+    )
     presenting_proportion = 0.4
     threshold = 0.5
 
@@ -868,11 +900,13 @@ def test_proportional_access_gatekeeping_time_series_case():
         t=np.array([0.0, 1.0, 2.0]),
     )
 
-    expected = np.array([
-        [4.0, 4.0, 4.0],
-        [6.0, 5.0, 4.0],
-        [10.0, 11.0, 12.0],
-    ])
+    expected = np.array(
+        [
+            [4.0, 4.0, 4.0],
+            [6.0, 5.0, 4.0],
+            [10.0, 11.0, 12.0],
+        ]
+    )
 
     np.testing.assert_allclose(obtained, expected)
 
@@ -881,7 +915,9 @@ def test_proportional_access_gatekeeping_raises_for_invalid_dimension():
     gatekeeping = sd.proportional_access_gatekeeping(threshold=0.5)
     stocks = np.zeros((3, 2, 2))
 
-    with pytest.raises(ValueError, match="stocks must be a 1D or 2D array-like structure."):
+    with pytest.raises(
+        ValueError, match="stocks must be a 1D or 2D array-like structure."
+    ):
         gatekeeping(
             stocks=stocks,
             population=1.0,
@@ -964,11 +1000,13 @@ def test_severity_specific_gatekeeping_scalar_empty_stocks():
 
 
 def test_severity_specific_gatekeeping_time_series_case():
-    stocks = np.array([
-        [20.0, 20.0, 20.0],
-        [30.0, 25.0, 20.0],
-        [50.0, 55.0, 60.0],
-    ])
+    stocks = np.array(
+        [
+            [20.0, 20.0, 20.0],
+            [30.0, 25.0, 20.0],
+            [50.0, 55.0, 60.0],
+        ]
+    )
     presenting_proportion = 0.4
     proportions = np.array([0.5, 0.3, 0.1])
 
@@ -981,11 +1019,13 @@ def test_severity_specific_gatekeeping_time_series_case():
         t=np.array([0.0, 1.0, 2.0]),
     )
 
-    expected = np.array([
-        [4.0, 4.0, 4.0],
-        [3.6, 3.0, 2.4],
-        [2.0, 2.2, 2.4],
-    ])
+    expected = np.array(
+        [
+            [4.0, 4.0, 4.0],
+            [3.6, 3.0, 2.4],
+            [2.0, 2.2, 2.4],
+        ]
+    )
 
     np.testing.assert_allclose(obtained, expected)
 
@@ -994,7 +1034,9 @@ def test_severity_specific_gatekeeping_raises_for_invalid_dimension():
     gatekeeping = sd.severity_specific_gatekeeping(proportions=[0.5, 0.3, 0.1])
     stocks = np.zeros((3, 2, 2))
 
-    with pytest.raises(ValueError, match="stocks must be a 1D or 2D array-like structure."):
+    with pytest.raises(
+        ValueError, match="stocks must be a 1D or 2D array-like structure."
+    ):
         gatekeeping(
             stocks=stocks,
             population=1.0,
@@ -1004,7 +1046,9 @@ def test_severity_specific_gatekeeping_raises_for_invalid_dimension():
 
 
 def test_partial_priority_gatekeeping_returns_callable():
-    gatekeeping = sd.partial_priority_gatekeeping(capacity=15.0, priority_relaxation=0.5)
+    gatekeeping = sd.partial_priority_gatekeeping(
+        capacity=15.0, priority_relaxation=0.5
+    )
     assert callable(gatekeeping)
 
 
@@ -1117,11 +1161,13 @@ def test_partial_priority_gatekeeping_scalar_full_capacity():
 
 
 def test_partial_priority_gatekeeping_time_series_case():
-    stocks = np.array([
-        [20.0, 20.0, 20.0],
-        [30.0, 25.0, 20.0],
-        [50.0, 55.0, 60.0],
-    ])
+    stocks = np.array(
+        [
+            [20.0, 20.0, 20.0],
+            [30.0, 25.0, 20.0],
+            [50.0, 55.0, 60.0],
+        ]
+    )
     presenting_proportion = 0.4
     capacity = 15.0
     priority_relaxation = 0.5
@@ -1135,20 +1181,26 @@ def test_partial_priority_gatekeeping_time_series_case():
         t=np.array([0.0, 1.0, 2.0]),
     )
 
-    expected = np.array([
-        [5.5, 5.5, 5.5],
-        [5.75, 5.375, 5.0],
-        [3.75, 4.125, 4.5],
-    ])
+    expected = np.array(
+        [
+            [5.5, 5.5, 5.5],
+            [5.75, 5.375, 5.0],
+            [3.75, 4.125, 4.5],
+        ]
+    )
 
     np.testing.assert_allclose(obtained, expected)
 
 
 def test_partial_priority_gatekeeping_raises_for_invalid_dimension():
-    gatekeeping = sd.partial_priority_gatekeeping(capacity=15.0, priority_relaxation=0.5)
+    gatekeeping = sd.partial_priority_gatekeeping(
+        capacity=15.0, priority_relaxation=0.5
+    )
     stocks = np.zeros((3, 2, 2))
 
-    with pytest.raises(ValueError, match="stocks must be a 1D or 2D array-like structure."):
+    with pytest.raises(
+        ValueError, match="stocks must be a 1D or 2D array-like structure."
+    ):
         gatekeeping(
             stocks=stocks,
             population=1.0,
@@ -1162,7 +1214,9 @@ def test_partial_priority_gatekeeping_zero_relaxation_matches_fixed_capacity_str
     presenting_proportion = 0.4
     capacity = 15.0
 
-    blended = sd.partial_priority_gatekeeping(capacity=capacity, priority_relaxation=0.0)
+    blended = sd.partial_priority_gatekeeping(
+        capacity=capacity, priority_relaxation=0.0
+    )
     strict = sd.fixed_capacity_strict_gatekeeping(capacity=capacity)
 
     obtained_blended = blended(
@@ -1186,7 +1240,9 @@ def test_partial_priority_gatekeeping_full_relaxation_matches_fixed_capacity_pro
     presenting_proportion = 0.4
     capacity = 15.0
 
-    blended = sd.partial_priority_gatekeeping(capacity=capacity, priority_relaxation=1.0)
+    blended = sd.partial_priority_gatekeeping(
+        capacity=capacity, priority_relaxation=1.0
+    )
     proportional = sd.fixed_capacity_proportional_gatekeeping(capacity=capacity)
 
     obtained_blended = blended(
@@ -1206,11 +1262,13 @@ def test_partial_priority_gatekeeping_full_relaxation_matches_fixed_capacity_pro
 
 
 def test_partial_priority_gatekeeping_time_series_zero_demand_branch():
-    stocks = np.array([
-        [0.0, 20.0, 20.0],
-        [0.0, 30.0, 25.0],
-        [0.0, 50.0, 55.0],
-    ])
+    stocks = np.array(
+        [
+            [0.0, 20.0, 20.0],
+            [0.0, 30.0, 25.0],
+            [0.0, 50.0, 55.0],
+        ]
+    )
     presenting_proportion = 0.4
     capacity = 15.0
     priority_relaxation = 0.5
@@ -1224,11 +1282,13 @@ def test_partial_priority_gatekeeping_time_series_zero_demand_branch():
         t=np.array([0.0, 1.0, 2.0]),
     )
 
-    expected = np.array([
-        [0.0, 5.5,   5.5],
-        [0.0, 5.75,  5.375],
-        [0.0, 3.75,  4.125],
-    ])
+    expected = np.array(
+        [
+            [0.0, 5.5, 5.5],
+            [0.0, 5.75, 5.375],
+            [0.0, 3.75, 4.125],
+        ]
+    )
 
     np.testing.assert_allclose(obtained, expected)
 
@@ -1390,11 +1450,13 @@ def test_severity_responsive_gatekeeping_scalar_leftovers_to_final_group():
 
 
 def test_severity_responsive_gatekeeping_time_series_case():
-    stocks = np.array([
-        [20.0, 50.0, 30.0],
-        [30.0, 30.0, 30.0],
-        [50.0, 20.0, 40.0],
-    ])
+    stocks = np.array(
+        [
+            [20.0, 50.0, 30.0],
+            [30.0, 30.0, 30.0],
+            [50.0, 20.0, 40.0],
+        ]
+    )
     presenting_proportion = 0.4
 
     gatekeeping = sd.severity_responsive_gatekeeping(
@@ -1410,21 +1472,25 @@ def test_severity_responsive_gatekeeping_time_series_case():
         t=np.array([0.0, 1.0, 2.0]),
     )
 
-    expected = np.array([
-        [8.0, 20.0, 12.0],
-        [2.0, 0.0, 8.0],
-        [0.0, 0.0, 0.0],
-    ])
+    expected = np.array(
+        [
+            [8.0, 20.0, 12.0],
+            [2.0, 0.0, 8.0],
+            [0.0, 0.0, 0.0],
+        ]
+    )
 
     np.testing.assert_allclose(obtained, expected)
 
 
 def test_severity_responsive_gatekeeping_equal_capacities_matches_fixed_capacity_strict():
-    stocks = np.array([
-        [20.0, 50.0, 30.0], 
-        [30.0, 30.0, 30.0], 
-        [50.0, 20.0, 40.0], 
-    ])
+    stocks = np.array(
+        [
+            [20.0, 50.0, 30.0],
+            [30.0, 30.0, 30.0],
+            [50.0, 20.0, 40.0],
+        ]
+    )
     presenting_proportion = 0.4
     capacity = 15.0
 
@@ -1448,22 +1514,26 @@ def test_severity_responsive_gatekeeping_equal_capacities_matches_fixed_capacity
         t=np.array([0.0, 1.0, 2.0]),
     )
 
-    expected = np.array([
-        [8.0, 15.0, 12.0],
-        [7.0,  0.0,  3.0],
-        [0.0,  0.0,  0.0],
-    ])
+    expected = np.array(
+        [
+            [8.0, 15.0, 12.0],
+            [7.0, 0.0, 3.0],
+            [0.0, 0.0, 0.0],
+        ]
+    )
 
     np.testing.assert_allclose(obtained_severity_responsive, obtained_fixed_strict)
     np.testing.assert_allclose(obtained_severity_responsive, expected)
 
 
 def test_severity_responsive_gatekeeping_time_series_zero_demand_continue_branch():
-    stocks = np.array([
-        [0.0, 20.0, 50.0],
-        [0.0, 30.0, 30.0],
-        [0.0, 50.0, 20.0], 
-    ])
+    stocks = np.array(
+        [
+            [0.0, 20.0, 50.0],
+            [0.0, 30.0, 30.0],
+            [0.0, 50.0, 20.0],
+        ]
+    )
     presenting_proportion = 0.4
 
     gatekeeping = sd.severity_responsive_gatekeeping(
@@ -1479,11 +1549,13 @@ def test_severity_responsive_gatekeeping_time_series_zero_demand_continue_branch
         t=np.array([0.0, 1.0, 2.0]),
     )
 
-    expected = np.array([
-        [0.0, 8.0, 20.0],
-        [0.0, 2.0, 0.0],
-        [0.0, 0.0, 0.0],
-    ])
+    expected = np.array(
+        [
+            [0.0, 8.0, 20.0],
+            [0.0, 2.0, 0.0],
+            [0.0, 0.0, 0.0],
+        ]
+    )
 
     np.testing.assert_allclose(obtained, expected)
 
@@ -1496,7 +1568,9 @@ def test_severity_responsive_gatekeeping_raises_for_invalid_dimension():
     )
     stocks = np.zeros((3, 2, 2))
 
-    with pytest.raises(ValueError, match="stocks must be a 1D or 2D array-like structure."):
+    with pytest.raises(
+        ValueError, match="stocks must be a 1D or 2D array-like structure."
+    ):
         gatekeeping(
             stocks=stocks,
             population=1.0,
@@ -1664,11 +1738,13 @@ def test_time_phased_gatekeeping_scalar_between_changes_uses_middle_policy():
 
 
 def test_time_phased_gatekeeping_time_series_crosses_multiple_phases():
-    stocks = np.array([
-        [20.0, 20.0, 20.0],
-        [30.0, 25.0, 20.0],
-        [50.0, 55.0, 60.0],
-    ])
+    stocks = np.array(
+        [
+            [20.0, 20.0, 20.0],
+            [30.0, 25.0, 20.0],
+            [50.0, 55.0, 60.0],
+        ]
+    )
     presenting_proportion = 0.4
     t = np.array([5.0, 15.0, 25.0])
 
@@ -1688,26 +1764,28 @@ def test_time_phased_gatekeeping_time_series_crosses_multiple_phases():
         t=t,
     )
 
-    expected = np.column_stack([
-        phase_one(
-            stocks=stocks[:, 0],
-            population=stocks[:, 0].sum(),
-            presenting_proportion=presenting_proportion,
-            t=t[0],
-        ),
-        phase_two(
-            stocks=stocks[:, 1],
-            population=stocks[:, 1].sum(),
-            presenting_proportion=presenting_proportion,
-            t=t[1],
-        ),
-        phase_three(
-            stocks=stocks[:, 2],
-            population=stocks[:, 2].sum(),
-            presenting_proportion=presenting_proportion,
-            t=t[2],
-        ),
-    ])
+    expected = np.column_stack(
+        [
+            phase_one(
+                stocks=stocks[:, 0],
+                population=stocks[:, 0].sum(),
+                presenting_proportion=presenting_proportion,
+                t=t[0],
+            ),
+            phase_two(
+                stocks=stocks[:, 1],
+                population=stocks[:, 1].sum(),
+                presenting_proportion=presenting_proportion,
+                t=t[1],
+            ),
+            phase_three(
+                stocks=stocks[:, 2],
+                population=stocks[:, 2].sum(),
+                presenting_proportion=presenting_proportion,
+                t=t[2],
+            ),
+        ]
+    )
 
     np.testing.assert_allclose(obtained, expected)
 
@@ -1736,11 +1814,13 @@ def test_time_phased_gatekeeping_scalar_empty_stocks():
 
 
 def test_time_phased_gatekeeping_single_policy_no_changes_matches_base_policy():
-    stocks = np.array([
-        [20.0, 20.0, 20.0],
-        [30.0, 25.0, 20.0],
-        [50.0, 55.0, 60.0],
-    ])
+    stocks = np.array(
+        [
+            [20.0, 20.0, 20.0],
+            [30.0, 25.0, 20.0],
+            [50.0, 55.0, 60.0],
+        ]
+    )
     presenting_proportion = 0.4
     t = np.array([0.0, 10.0, 20.0])
 
@@ -1778,7 +1858,9 @@ def test_time_phased_gatekeeping_raises_for_invalid_dimension():
     )
     stocks = np.zeros((3, 2, 2))
 
-    with pytest.raises(ValueError, match="stocks must be a 1D or 2D array-like structure."):
+    with pytest.raises(
+        ValueError, match="stocks must be a 1D or 2D array-like structure."
+    ):
         gatekeeping(
             stocks=stocks,
             population=1.0,
@@ -1787,14 +1869,12 @@ def test_time_phased_gatekeeping_raises_for_invalid_dimension():
         )
 
 
-
 def test_get_time_dependent_population_size():
     population_sizes = [1000, 2000, 3000]
     durations = [10, 20, 30]
 
     population_fn = sd.get_time_dependent_population_size(
-        population_sizes=population_sizes,
-        durations=durations
+        population_sizes=population_sizes, durations=durations
     )
 
     assert population_fn(0) == 1000
@@ -1814,8 +1894,7 @@ def test_get_time_dependent_population_size():
 
     with pytest.raises(ValueError):
         sd.get_time_dependent_population_size(
-            population_sizes=[1000, 2000],
-            durations=[10]
+            population_sizes=[1000, 2000], durations=[10]
         )
 
 
@@ -1824,8 +1903,7 @@ def test_get_time_dependent_incidence_rate():
     durations = [10, 20, 30]
 
     incidence_fn = sd.get_time_dependent_incidence_rate(
-        incidence_proportions=incidence_proportions,
-        durations=durations
+        incidence_proportions=incidence_proportions, durations=durations
     )
 
     population_size = 10000
@@ -1846,8 +1924,7 @@ def test_get_time_dependent_incidence_rate():
 
     with pytest.raises(ValueError):
         sd.get_time_dependent_incidence_rate(
-            incidence_proportions=[0.01, 0.02],
-            durations=[10]
+            incidence_proportions=[0.01, 0.02], durations=[10]
         )
 
 
@@ -1856,8 +1933,7 @@ def test_get_time_dependent_recovery_rate():
     durations = [10, 20, 30]
 
     recovery_fn = sd.get_time_dependent_recovery_rate(
-        recovery_proportions=recovery_proportions,
-        durations=durations
+        recovery_proportions=recovery_proportions, durations=durations
     )
 
     stock_size = 10000
@@ -1878,6 +1954,5 @@ def test_get_time_dependent_recovery_rate():
 
     with pytest.raises(ValueError):
         sd.get_time_dependent_recovery_rate(
-            recovery_proportions=[0.01, 0.02],
-            durations=[10]
+            recovery_proportions=[0.01, 0.02], durations=[10]
         )
