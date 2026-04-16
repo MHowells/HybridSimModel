@@ -549,7 +549,7 @@ def test_seasonal_gatekeeping_scalar_partial_medium():
     np.testing.assert_allclose(obtained, expected)
 
 
-def test_seasonal_gatekeeping_scalar_leftovers_to_low_group():
+def test_seasonal_gatekeeping_scalar_leftovers_to_final_group():
     stocks = np.array([10.0, 10.0, 100.0])
     presenting_proportion = 0.5
 
@@ -1172,6 +1172,248 @@ def test_partial_priority_gatekeeping_full_relaxation_matches_fixed_capacity_pro
     )
 
     np.testing.assert_allclose(obtained_blended, obtained_proportional)
+
+
+def test_severity_responsive_gatekeeping_returns_callable():
+    gatekeeping = sd.severity_responsive_gatekeeping(
+        severity_threshold=0.3,
+        low_severity_capacity=10.0,
+        high_severity_capacity=20.0,
+    )
+    assert callable(gatekeeping)
+
+
+def test_severity_responsive_gatekeeping_scalar_below_threshold_uses_low_capacity():
+    stocks = np.array([20.0, 30.0, 50.0])
+    presenting_proportion = 0.4
+
+    gatekeeping = sd.severity_responsive_gatekeeping(
+        severity_threshold=0.3,
+        low_severity_capacity=10.0,
+        high_severity_capacity=20.0,
+    )
+
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected = np.array([8.0, 2.0, 0.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_severity_responsive_gatekeeping_scalar_above_threshold_uses_high_capacity():
+    stocks = np.array([50.0, 30.0, 20.0])
+    presenting_proportion = 0.4
+
+    gatekeeping = sd.severity_responsive_gatekeeping(
+        severity_threshold=0.3,
+        low_severity_capacity=10.0,
+        high_severity_capacity=20.0,
+    )
+
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected = np.array([20.0, 0.0, 0.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_severity_responsive_gatekeeping_scalar_at_threshold_uses_high_capacity():
+    stocks = np.array([30.0, 30.0, 40.0])
+    presenting_proportion = 0.4
+
+    gatekeeping = sd.severity_responsive_gatekeeping(
+        severity_threshold=0.3,
+        low_severity_capacity=10.0,
+        high_severity_capacity=20.0,
+    )
+
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected = np.array([12.0, 8.0, 0.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_severity_responsive_gatekeeping_scalar_no_capacity():
+    stocks = np.array([20.0, 30.0, 50.0])
+    presenting_proportion = 0.4
+
+    gatekeeping = sd.severity_responsive_gatekeeping(
+        severity_threshold=0.3,
+        low_severity_capacity=0.0,
+        high_severity_capacity=0.0,
+    )
+
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected = np.array([0.0, 0.0, 0.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_severity_responsive_gatekeeping_scalar_empty_stocks():
+    stocks = np.array([0.0, 0.0, 0.0])
+    presenting_proportion = 0.4
+
+    gatekeeping = sd.severity_responsive_gatekeeping(
+        severity_threshold=0.3,
+        low_severity_capacity=10.0,
+        high_severity_capacity=20.0,
+    )
+
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected = np.array([0.0, 0.0, 0.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_severity_responsive_gatekeeping_scalar_full_capacity():
+    stocks = np.array([20.0, 30.0, 50.0])
+    presenting_proportion = 0.4
+
+    gatekeeping = sd.severity_responsive_gatekeeping(
+        severity_threshold=0.3,
+        low_severity_capacity=50.0,
+        high_severity_capacity=50.0,
+    )
+
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected = np.array([8.0, 12.0, 20.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_severity_responsive_gatekeeping_scalar_leftovers_to_final_group():
+    stocks = np.array([10.0, 10.0, 100.0])
+    presenting_proportion = 0.5
+
+    gatekeeping = sd.severity_responsive_gatekeeping(
+        severity_threshold=0.05,
+        low_severity_capacity=12.0,
+        high_severity_capacity=12.0,
+    )
+
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected = np.array([5.0, 5.0, 2.0])
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_severity_responsive_gatekeeping_time_series_case():
+    stocks = np.array([
+        [20.0, 50.0, 30.0],
+        [30.0, 30.0, 30.0],
+        [50.0, 20.0, 40.0],
+    ])
+    presenting_proportion = 0.4
+
+    gatekeeping = sd.severity_responsive_gatekeeping(
+        severity_threshold=0.3,
+        low_severity_capacity=10.0,
+        high_severity_capacity=20.0,
+    )
+
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(axis=0),
+        presenting_proportion=presenting_proportion,
+        t=np.array([0.0, 1.0, 2.0]),
+    )
+
+    expected = np.array([
+        [8.0, 20.0, 12.0],
+        [2.0, 0.0, 8.0],
+        [0.0, 0.0, 0.0],
+    ])
+
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_severity_responsive_gatekeeping_equal_capacities_matches_fixed_capacity_strict():
+    stocks = np.array([
+        [20.0, 50.0, 30.0], 
+        [30.0, 30.0, 30.0], 
+        [50.0, 20.0, 40.0], 
+    ])
+    presenting_proportion = 0.4
+    capacity = 15.0
+
+    severity_responsive = sd.severity_responsive_gatekeeping(
+        severity_threshold=0.3,
+        low_severity_capacity=capacity,
+        high_severity_capacity=capacity,
+    )
+    fixed_strict = sd.fixed_capacity_strict_gatekeeping(capacity=capacity)
+
+    obtained_severity_responsive = severity_responsive(
+        stocks=stocks,
+        population=stocks.sum(axis=0),
+        presenting_proportion=presenting_proportion,
+        t=np.array([0.0, 1.0, 2.0]),
+    )
+    obtained_fixed_strict = fixed_strict(
+        stocks=stocks,
+        population=stocks.sum(axis=0),
+        presenting_proportion=presenting_proportion,
+        t=np.array([0.0, 1.0, 2.0]),
+    )
+
+    expected = np.array([
+        [8.0, 15.0, 12.0],
+        [7.0,  0.0,  3.0],
+        [0.0,  0.0,  0.0],
+    ])
+
+    np.testing.assert_allclose(obtained_severity_responsive, obtained_fixed_strict)
+    np.testing.assert_allclose(obtained_severity_responsive, expected)
+
+
+def test_severity_responsive_gatekeeping_raises_for_invalid_dimension():
+    gatekeeping = sd.severity_responsive_gatekeeping(
+        severity_threshold=0.3,
+        low_severity_capacity=10.0,
+        high_severity_capacity=20.0,
+    )
+    stocks = np.zeros((3, 2, 2))
+
+    with pytest.raises(ValueError, match="stocks must be a 1D or 2D array-like structure."):
+        gatekeeping(
+            stocks=stocks,
+            population=1.0,
+            presenting_proportion=0.4,
+            t=0.0,
+        )
 
 
 def test_get_time_dependent_population_size():
