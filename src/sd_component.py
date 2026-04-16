@@ -711,8 +711,6 @@ def time_phased_gatekeeping(change_times, gatekeeping_policies):
         stocks = np.array(stocks, dtype=float)
         t = np.asarray(t)
 
-        is_scalar = np.isscalar(t) or t.shape == ()
-
         def get_policy_index(time_point):
             policy_idx = 0
             for change_time in change_times:
@@ -721,7 +719,7 @@ def time_phased_gatekeeping(change_times, gatekeeping_policies):
                 policy_idx += 1
             return policy_idx
 
-        if is_scalar:
+        if stocks.ndim == 1:
             policy_idx = get_policy_index(t)
             selected_policy = gatekeeping_policies[policy_idx]
 
