@@ -735,7 +735,6 @@ def test_seasonal_gatekeeping_time_series_zero_capacity_continue_branch():
         [50.0, 50.0, 50.0],
     ])
     presenting_proportion = 0.4
-    t = np.array([0.0, 1.0, 2.0])
 
     gatekeeping = sd.seasonal_gatekeeping(
         baseline=1.0,
@@ -748,7 +747,7 @@ def test_seasonal_gatekeeping_time_series_zero_capacity_continue_branch():
         stocks=stocks,
         population=stocks.sum(axis=0),
         presenting_proportion=presenting_proportion,
-        t=t,
+        t=np.array([0.0, 1.0, 2.0]),
     )
 
     expected = np.array([
@@ -1457,6 +1456,36 @@ def test_severity_responsive_gatekeeping_equal_capacities_matches_fixed_capacity
 
     np.testing.assert_allclose(obtained_severity_responsive, obtained_fixed_strict)
     np.testing.assert_allclose(obtained_severity_responsive, expected)
+
+
+def test_severity_responsive_gatekeeping_time_series_zero_demand_continue_branch():
+    stocks = np.array([
+        [0.0, 20.0, 50.0],
+        [0.0, 30.0, 30.0],
+        [0.0, 50.0, 20.0], 
+    ])
+    presenting_proportion = 0.4
+
+    gatekeeping = sd.severity_responsive_gatekeeping(
+        severity_threshold=0.3,
+        low_severity_capacity=10.0,
+        high_severity_capacity=20.0,
+    )
+
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(axis=0),
+        presenting_proportion=presenting_proportion,
+        t=np.array([0.0, 1.0, 2.0]),
+    )
+
+    expected = np.array([
+        [0.0, 8.0, 20.0],
+        [0.0, 2.0, 0.0],
+        [0.0, 0.0, 0.0],
+    ])
+
+    np.testing.assert_allclose(obtained, expected)
 
 
 def test_severity_responsive_gatekeeping_raises_for_invalid_dimension():
