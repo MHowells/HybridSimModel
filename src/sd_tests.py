@@ -1898,6 +1898,63 @@ def test_get_time_dependent_population_size():
         )
 
 
+def test_get_time_dependent_population_size_returns_expected_size_within_each_period():
+    population_fn = sd.get_time_dependent_population_size(
+        population_sizes=[1000, 2000, 3000],
+        durations=[10, 20, 30],
+    )
+
+    assert population_fn(0) == 1000
+    assert population_fn(9.9) == 1000
+    assert population_fn(10) == 2000
+    assert population_fn(29.9) == 2000
+    assert population_fn(30) == 3000
+    assert population_fn(59.9) == 3000
+
+
+def test_get_time_dependent_population_size_returns_final_size_after_all_periods():
+    population_fn = sd.get_time_dependent_population_size(
+        population_sizes=[1000, 2000, 3000],
+        durations=[10, 20, 30],
+    )
+
+    assert population_fn(60) == 3000
+    assert population_fn(100) == 3000
+
+
+def test_get_time_dependent_population_size_accepts_scalar_population_size_and_duration():
+    population_fn = sd.get_time_dependent_population_size(
+        population_sizes=1000,
+        durations=10,
+    )
+
+    assert population_fn(0) == 1000
+    assert population_fn(9.9) == 1000
+    assert population_fn(10) == 1000
+    assert population_fn(100) == 1000
+
+
+def test_get_time_dependent_population_size_uses_single_size_indefinitely_when_duration_not_provided():
+    population_fn = sd.get_time_dependent_population_size(
+        population_sizes=1000,
+    )
+
+    assert population_fn(0) == 1000
+    assert population_fn(10) == 1000
+    assert population_fn(1000) == 1000
+
+
+def test_get_time_dependent_population_size_raises_value_error_for_mismatched_lengths():
+    with pytest.raises(
+        ValueError,
+        match="The lengths of population_sizes and durations must match.",
+    ):
+        sd.get_time_dependent_population_size(
+            population_sizes=[1000, 2000],
+            durations=[10],
+        )
+
+
 def test_get_time_dependent_incidence_rate_returns_expected_rate_within_each_period():
     incidence_fn = sd.get_time_dependent_incidence_rate(
         incidence_proportions=[0.01, 0.02, 0.03],
