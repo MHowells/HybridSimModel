@@ -438,6 +438,114 @@ def severity_specific_gatekeeping(proportions):
     return gatekeeping_function
 
 
+def partial_priority_gatekeeping(capacity, priority_relaxation):
+    """
+    Gatekeeping function with fixed total referral capacity per time step,
+    where referrals are allocated as a blend of:
+    - strict severity-priority allocation
+    - proportional allocation across presenting demand
+
+    Parameters
+    ----------
+    capacity : float or int
+        Maximum number of presenting patients who can be referred
+        per time step.
+    priority_relaxation : float in [0, 1]
+        Degree of relaxation in priority-based allocation.
+        0.0 = fully strict-priority
+        1.0 = fully proportional allocation
+
+    Returns
+    -------
+    function
+        Function to calculate lambda values for each stock.
+    """
+
+    def gatekeeping_function(stocks, population, presenting_proportion, t):
+        """
+        Calculate referral flows under a blended-allocation gatekeeping policy.
+
+        Parameters
+        ----------
+        stocks : list/array of scalars or arrays
+            Stock levels for each severity group, ordered by priority
+            (e.g. high, medium, low).
+        population : float or array
+            Included for compatibility with the SD framework, but unused.
+        presenting_proportion : float in [0, 1]
+            Proportion of each stock presenting to primary care.
+        t : float or array
+            Time input (unused here, but included for compatibility).
+
+        Returns
+        -------
+        np.ndarray
+            Referral flows for each stock, either as:
+            - shape (n_groups,) for scalar input
+            - shape (n_groups, T) for time-series input
+        """
+        stocks = np.array(stocks, dtype=float)
+
+        if stocks.ndim == 1:
+            demand = presenting_proportion * stocks
+            n_groups = len(stocks)
+            strict_lambdas = np.zeros(n_groups)
+            remaining_capacity = capacity
+            
+            for i in range(n_groups):
+                allowed = min(demand[i], remaining_capacity)
+                strict_lambdas[i] = allowed
+                remaining_capacity = max(remaining_capacity - allowed, 0.0)
+
+            total_demand = demand.sum()
+            if total_demand == 0:
+                proportional_lambdas = np.zeros(n_groups)
+            else:
+                proportional_lambdas = capacity * demand / total_demand
+                proportional_lambdas = np.minimum(proportional_lambdas, demand)
+
+            lambdas = (
+                (1 - priority_relaxation) * strict_lambdas
+                + priority_relaxation * proportional_lambdas
+            )
+
+            return lambdas
+
+        elif stocks.ndim == 2:
+            demand = presenting_proportion * stocks
+            n_groups, n_times = demand.shape
+            lambdas = np.zeros((n_groups, n_times))
+
+            for k in range(n_times):
+                d = demand[:, k]
+                strict_lambdas = np.zeros(n_groups)
+                remaining_capacity = capacity
+
+                for i in range(n_groups):
+                    allowed = min(d[i], remaining_capacity)
+                    strict_lambdas[i] = allowed
+                    remaining_capacity = max(remaining_capacity - allowed, 0.0)
+
+                total_demand = d.sum()
+                if total_demand == 0:
+                    proportional_lambdas = np.zeros(n_groups)
+                else:
+                    proportional_lambdas = capacity * d / total_demand
+                    proportional_lambdas = np.minimum(proportional_lambdas, d)
+
+                lambdas[:, k] = (
+                    (1 - priority_relaxation) * strict_lambdas
+                    + priority_relaxation * proportional_lambdas
+                )
+
+            return lambdas
+
+        else:
+            raise ValueError("stocks must be a 1D or 2D array-like structure.")
+
+    return gatekeeping_function
+
+
 class SD:
     """
     A class to hold the SD component.
