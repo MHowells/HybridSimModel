@@ -2072,3 +2072,81 @@ def test_get_time_dependent_recovery_rate_raises_value_error_for_mismatched_leng
             recovery_proportions=[0.01, 0.02],
             durations=[10],
         )
+
+
+def get_simple_sd_model_for_initialisation_tests(
+    population_function=None,
+    initial_unwell_proportion=0.1,
+    unwell_splits=(0.2, 0.3, 0.5),
+    gatekeeping_function=None,
+    presenting_proportion=0.4,
+    deterioration_function=None,
+    incidence_function=None,
+    recovery_function=None,
+):
+    if population_function is None:
+        def population_function(t):
+            return 1000
+
+    if gatekeeping_function is None:
+        def gatekeeping_function(stocks, population, presenting_proportion, t):
+            return [0.0, 0.0, 0.0]
+
+    if deterioration_function is None:
+        def deterioration_function(t):
+            return 0.0
+
+    if incidence_function is None:
+        def incidence_function(t, population_size):
+            return 0.0
+
+    if recovery_function is None:
+        def recovery_function(t, stock_size):
+            return 0.0
+
+    return sd.SD(
+        population_function=population_function,
+        initial_unwell_proportion=initial_unwell_proportion,
+        unwell_splits=unwell_splits,
+        gatekeeping_function=gatekeeping_function,
+        presenting_proportion=presenting_proportion,
+        deterioration_function=deterioration_function,
+        incidence_function=incidence_function,
+        recovery_function=recovery_function,
+    )
+
+
+def test_sd_initialises_stock_sizes_from_initial_population_unwell_proportion_and_splits():
+    model = get_simple_sd_model_for_initialisation_tests(
+        initial_unwell_proportion=0.2,
+        unwell_splits=(0.5, 0.3, 0.2),
+    )
+
+    expected_unwell_population = 1000 * 0.2
+
+    assert model.P[0] == expected_unwell_population * 0.5
+    assert model.P[1] == expected_unwell_population * 0.3
+    assert model.P[2] == expected_unwell_population * 0.2
+
+
+def test_sd_initial_stock_sizes_sum_to_initial_unwell_population():
+    model = get_simple_sd_model_for_initialisation_tests(
+        initial_unwell_proportion=0.1,
+        unwell_splits=(0.2, 0.3, 0.5),
+    )
+
+    expected_unwell_population = 1000 * 0.1
+
+    assert sum(model.P) == expected_unwell_population
+
+
+def test_sd_initialises_time_and_lambdas_attributes():
+    model = get_simple_sd_model_for_initialisation_tests(
+        initial_unwell_proportion=0.1,
+        unwell_splits=(0.2, 0.3, 0.5),
+        presenting_proportion=0.25,
+    )
+
+    assert model.presenting_proportion == 0.25
+    assert np.array_equal(model.time, np.array([0]))
+    assert model.lambdas is None
