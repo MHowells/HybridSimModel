@@ -776,6 +776,7 @@ class SD:
         presenting_proportion,
         deterioration_function,
         incidence_function,
+        recovery_function,
     ):
         """
         Initialised the parameters for the SD component
@@ -796,6 +797,8 @@ class SD:
             function to calculate the rate at which patients deteriorate
         incidence_function : a function
             function to calculate the rate at which new patients enter the system
+        recovery_function : a function
+            function to calculate the rate at which patients recover
         """
         w = unwell_splits
         self.initial_population = population_function
@@ -805,6 +808,7 @@ class SD:
         self.gatekeeping_function = gatekeeping_function
         self.deterioration_rate = deterioration_function
         self.incidence_rate = incidence_function
+        self.recovery_rate = recovery_function
         self.time = np.array([0])
         self.lambdas = None
 
@@ -836,7 +840,7 @@ class SD:
         if N_current == 0:
             return 0, 0, 0
 
-        current_population = self.initial_population(t=time_domain)
+        current_population = max(self.initial_population(t=time_domain), 0)
 
         lambdas = self.gatekeeping_function(
             stocks=all_stocks,
@@ -845,15 +849,16 @@ class SD:
             t=time_domain,
         )
 
-        dP_onedt = -lambdas[0] + self.deterioration_rate(t=time_domain) * P_two
+        dP_onedt = (self.deterioration_rate(t=time_domain) * P_two) - lambdas[0]
         dP_twodt = (
-            -lambdas[1]
+            (self.deterioration_rate(t=time_domain) * P_three)
             - (self.deterioration_rate(t=time_domain) * P_two)
-            + (self.deterioration_rate(t=time_domain) * P_three)
+            - lambdas[1]
         )
         dP_threedt = (
             -lambdas[2]
             - (self.deterioration_rate(t=time_domain) * P_three)
+            - (self.recovery_rate(t=time_domain, stock_size=N_current))
             + (self.incidence_rate(t=time_domain, population_size=current_population))
         )
         return dP_onedt, dP_twodt, dP_threedt
@@ -1056,11 +1061,11 @@ def get_time_dependent_recovery_rate(recovery_proportions, durations=np.NaN):
 
 
 def plot_stocks_over_time(
-    stocks, 
-    t, 
-    ylim=None, 
-    title="Stock Size Over Time", 
-    filename=None, 
+    stocks,
+    t,
+    ylim=None,
+    title="Stock Size Over Time",
+    filename=None,
     show=True,
 ):
     """
@@ -1090,7 +1095,7 @@ def plot_stocks_over_time(
         raise ValueError("stocks must contain exactly 3 arrays.")
     if any(len(stock) != len(t) for stock in stocks):
         raise ValueError("Each stock array must have the same length as t.")
-    
+
     fig, ax = plt.subplots(figsize=(6, 4))
     colors = ["#FFC107", "#1E88E5", "#D81B60"]
     labels = ["$P_1$ (High)", "$P_2$ (Medium)", "$P_3$ (Low)"]
@@ -1100,7 +1105,7 @@ def plot_stocks_over_time(
     ax.set_title(title, fontsize=16)
     ax.set_xlabel("Time (days)", fontsize=14)
     ax.set_ylabel("Population in stock", fontsize=14)
-    
+
     if ylim is not None:
         ax.set_ylim(ylim)
 
@@ -1167,7 +1172,7 @@ def plot_stacked_stocks_over_time(
         raise ValueError("Each stock array must have the same length as t.")
     if overlay_values is not None and len(overlay_values) != len(t):
         raise ValueError("overlay_values must have the same length as t.")
-    
+
     fig, ax = plt.subplots(figsize=(6, 4))
     colors = ["#FFC107", "#1E88E5", "#D81B60"]
 
@@ -1211,7 +1216,7 @@ def plot_referral_numbers_over_time(
     ylim=None,
     title="Referral Numbers Over Time",
     filename=None,
-    show=True
+    show=True,
 ):
     """
     Plot referral numbers over time for the three SD stocks.
@@ -1242,7 +1247,7 @@ def plot_referral_numbers_over_time(
         )
     if any(len(referral) != len(t) for referral in referral_numbers):
         raise ValueError("Each array must have the same length as t.")
-    
+
     fig, ax = plt.subplots(figsize=(6, 4))
     colors = ["#FFC107", "#1E88E5", "#D81B60"]
     labels = ["$Λ_1(t)$ (High)", "$Λ_2(t)$ (Medium)", "$Λ_3(t)$ (Low)"]
