@@ -2318,3 +2318,111 @@ def test_sd_differential_equations_negative_population_floored_to_zero():
     )
 
     assert population_sizes == [0]
+
+
+def test_sd_solve_stores_stocks_with_expected_length():
+    model = get_simple_sd_model()
+
+    t = np.array([0.0, 1.0, 2.0, 3.0, 4.0])
+    model.solve(t=t)
+
+    assert len(model.P[0]) == len(t)
+    assert len(model.P[1]) == len(t)
+    assert len(model.P[2]) == len(t)
+
+
+def test_sd_solve_stores_initial_stock_values_at_start():
+    model = get_simple_sd_model(
+        initial_unwell_proportion=0.1,
+        unwell_splits=(0.2, 0.3, 0.5),
+    )
+
+    initial_P = model.P.copy()
+
+    t = np.array([0.0, 1.0, 2.0])
+    model.solve(t=t)
+
+    assert model.P[0][0] == initial_P[0]
+    assert model.P[1][0] == initial_P[1]
+    assert model.P[2][0] == initial_P[2]
+
+
+def test_sd_solve_returns_constant_stocks_when_all_flows_zero():
+    def gatekeeping_function(stocks, population, presenting_proportion, t):
+        if np.isscalar(t):
+            return [0.0, 0.0, 0.0]
+        return [
+            np.zeros_like(t, dtype=float),
+            np.zeros_like(t, dtype=float),
+            np.zeros_like(t, dtype=float),
+        ]
+
+    model = get_simple_sd_model(
+        gatekeeping_function=gatekeeping_function,
+    )
+
+    initial_P = model.P.copy()
+    t = np.linspace(0.0, 10.0, 6)
+
+    model.solve(t=t)
+
+    np.testing.assert_allclose(
+        model.P[0], np.full_like(t, initial_P[0], dtype=float)
+    )
+    np.testing.assert_allclose(
+        model.P[1], np.full_like(t, initial_P[1], dtype=float)
+    )
+    np.testing.assert_allclose(
+        model.P[2], np.full_like(t, initial_P[2], dtype=float)
+    )
+
+
+def test_sd_solve_computes_lambdas_with_expected_length():
+    def gatekeeping_function(stocks, population, presenting_proportion, t):
+        if np.isscalar(t):
+            return [0.0, 0.0, 0.0]
+        return [
+            np.zeros_like(t, dtype=float),
+            np.zeros_like(t, dtype=float),
+            np.zeros_like(t, dtype=float),
+        ]
+
+    model = get_simple_sd_model(
+        gatekeeping_function=gatekeeping_function,
+    )
+
+    t = np.linspace(0.0, 10.0, 6)
+    model.solve(t=t)
+
+    assert len(model.lambdas) == 3
+    assert len(model.lambdas[0]) == len(t)
+    assert len(model.lambdas[1]) == len(t)
+    assert len(model.lambdas[2]) == len(t)
+
+
+def test_sd_solve_stores_lambdas_from_gatekeeping_function():
+    def gatekeeping_function(stocks, population, presenting_proportion, t):
+        if np.isscalar(t):
+            return [1.0, 2.0, 3.0]
+        return [
+            np.full_like(t, 1.0, dtype=float),
+            np.full_like(t, 2.0, dtype=float),
+            np.full_like(t, 3.0, dtype=float),
+        ]
+
+    model = get_simple_sd_model(
+        gatekeeping_function=gatekeeping_function,
+    )
+
+    t = np.linspace(0.0, 10.0, 6)
+    model.solve(t=t)
+
+    np.testing.assert_allclose(
+        model.lambdas[0], np.full_like(t, 1.0, dtype=float)
+    )
+    np.testing.assert_allclose(
+        model.lambdas[1], np.full_like(t, 2.0, dtype=float)
+    )
+    np.testing.assert_allclose(
+        model.lambdas[2], np.full_like(t, 3.0, dtype=float)
+    )
