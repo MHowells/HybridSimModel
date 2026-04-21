@@ -59,5 +59,6 @@ https://github.com/MHowells/HybridSimModel.
 
 This code is funded by an Engineering and Physical Sciences Research Council 
 (EPSRC) Enhanced CASE PhD Studentship with Cardiff and Vale University Health 
-Board as the project partner.
+Board as the project partner (Project reference: 2601327, in relation to 
+EP/T517951/1).
 
