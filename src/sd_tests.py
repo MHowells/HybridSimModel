@@ -2074,7 +2074,7 @@ def test_get_time_dependent_recovery_rate_raises_value_error_for_mismatched_leng
         )
 
 
-def get_simple_sd_model_for_initialisation_tests(
+def get_simple_sd_model(
     population_function=None,
     initial_unwell_proportion=0.1,
     unwell_splits=(0.2, 0.3, 0.5),
@@ -2117,7 +2117,7 @@ def get_simple_sd_model_for_initialisation_tests(
 
 
 def test_sd_initialises_stock_sizes_from_initial_population_unwell_proportion_and_splits():
-    model = get_simple_sd_model_for_initialisation_tests(
+    model = get_simple_sd_model(
         initial_unwell_proportion=0.2,
         unwell_splits=(0.5, 0.3, 0.2),
     )
@@ -2130,7 +2130,7 @@ def test_sd_initialises_stock_sizes_from_initial_population_unwell_proportion_an
 
 
 def test_sd_initial_stock_sizes_sum_to_initial_unwell_population():
-    model = get_simple_sd_model_for_initialisation_tests(
+    model = get_simple_sd_model(
         initial_unwell_proportion=0.1,
         unwell_splits=(0.2, 0.3, 0.5),
     )
@@ -2141,7 +2141,7 @@ def test_sd_initial_stock_sizes_sum_to_initial_unwell_population():
 
 
 def test_sd_initialises_time_and_lambdas_attributes():
-    model = get_simple_sd_model_for_initialisation_tests(
+    model = get_simple_sd_model(
         initial_unwell_proportion=0.1,
         unwell_splits=(0.2, 0.3, 0.5),
         presenting_proportion=0.25,
@@ -2150,3 +2150,171 @@ def test_sd_initialises_time_and_lambdas_attributes():
     assert model.presenting_proportion == 0.25
     assert np.array_equal(model.time, np.array([0]))
     assert model.lambdas is None
+
+
+def test_sd_differential_equations_returns_zero_when_total_population_is_zero():
+    model = get_simple_sd_model()
+
+    obtained = model.differential_equations(
+        y=(0.0, 0.0, 0.0),
+        time_domain=0.0,
+    )
+
+    assert obtained == (0, 0, 0)
+
+
+def test_sd_differential_equations_returns_zero_when_all_flows_are_zero():
+    model = get_simple_sd_model()
+
+    obtained = model.differential_equations(
+        y=(10.0, 20.0, 30.0),
+        time_domain=5.0,
+    )
+
+    assert obtained == (0.0, 0.0, 0.0)
+
+
+def test_sd_differential_equations_returns_decrease_under_only_referrals():
+    model = get_simple_sd_model(
+        gatekeeping_function=lambda stocks, population, presenting_proportion, t: [1.0, 2.0, 3.0],
+    )
+
+    obtained = model.differential_equations(
+        y=(10.0, 20.0, 30.0),
+        time_domain=5.0,
+    )
+
+    expected = (-1.0, -2.0, -3.0)
+
+    assert obtained == expected
+
+
+def test_sd_differential_equations_returns_expected_flow_under_only_deterioration():
+    model = get_simple_sd_model(
+        deterioration_function=lambda t: 0.1,
+    )
+
+    obtained = model.differential_equations(
+        y=(10.0, 20.0, 30.0),
+        time_domain=5.0,
+    )
+
+    expected = (2.0, 1.0, -3.0)
+
+    assert obtained == expected
+
+
+def test_sd_differential_equations_returns_expected_increase_under_only_incidence():
+    model = get_simple_sd_model(
+        incidence_function=lambda t, population_size: 5.0,
+    )
+
+    obtained = model.differential_equations(
+        y=(10.0, 20.0, 30.0),
+        time_domain=5.0,
+    )
+
+    expected = (0.0, 0.0, 5.0)
+
+    assert obtained == expected
+
+
+def test_sd_differential_equations_returns_expected_decrease_under_only_recovery():
+    model = get_simple_sd_model(
+        recovery_function=lambda t, stock_size: 0.1 * stock_size,
+    )
+
+    obtained = model.differential_equations(
+        y=(10.0, 20.0, 30.0),
+        time_domain=5.0,
+    )
+
+    expected = (0.0, 0.0, -6.0)
+
+    assert obtained == expected
+
+
+def test_sd_differential_equations_returns_expected_values():
+    model = get_simple_sd_model(
+        gatekeeping_function=lambda stocks, population, presenting_proportion, t: [1.0, 2.0, 3.0],
+        deterioration_function=lambda t: 0.1,
+        incidence_function=lambda t, population_size: 5.0,
+        recovery_function=lambda t, stock_size: 6.0,
+    )
+
+    obtained = model.differential_equations(
+        y=(10.0, 20.0, 30.0),
+        time_domain=5.0,
+    )
+
+    expected = (1.0, -1.0, -7.0)
+
+    assert obtained == expected
+
+
+def test_sd_differential_equations_passes_current_population_to_incidence_function():
+    population_sizes = []
+
+    def population_function(t):
+        return 500.0 + t
+
+    def incidence_function(t, population_size):
+        population_sizes.append(population_size)
+        return 0.0
+
+    model = get_simple_sd_model(
+        population_function=population_function,
+        incidence_function=incidence_function,
+    )
+
+    model.differential_equations(
+        y=(10.0, 20.0, 30.0),
+        time_domain=5.0,
+    )
+
+    assert population_sizes == [505.0]
+
+
+def test_sd_differential_equations_passes_current_stock_size_to_recovery_function():
+    stock_sizes = []
+
+    def recovery_function(t, stock_size):
+        stock_sizes.append(stock_size)
+        return 0.0
+
+    model = get_simple_sd_model(
+        recovery_function=recovery_function,
+    )
+
+    model.differential_equations(
+        y=(10.0, 20.0, 30.0),
+        time_domain=5.0,
+    )
+
+    assert stock_sizes == [60.0]
+
+
+def test_sd_differential_equations_negative_population_floored_to_zero():
+    population_sizes = []
+
+    def population_function(t):
+        return -100.0
+
+    def incidence_function(t, population_size):
+        population_sizes.append(population_size)
+        return 0.0
+
+    model = get_simple_sd_model(
+        population_function=population_function,
+        gatekeeping_function=lambda stocks, population, presenting_proportion, t: [0.0, 0.0, 0.0],
+        deterioration_function=lambda t: 0.0,
+        incidence_function=incidence_function,
+        recovery_function=lambda t, stock_size: 0.0,
+    )
+
+    model.differential_equations(
+        y=(10.0, 20.0, 30.0),
+        time_domain=5.0,
+    )
+
+    assert population_sizes == [0]
