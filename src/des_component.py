@@ -69,7 +69,15 @@ class PDFARouting(ciw.routing.NodeRouting):
         A dictionary mapping subspecialties to their corresponding indices.
     """
 
-    def __init__(self, pdfa_matrices, alphabets, activity_dict, subspec_dict, pre_op_letter, elective_surgery_letter):
+    def __init__(
+        self,
+        pdfa_matrices,
+        alphabets,
+        activity_dict,
+        subspec_dict,
+        pre_op_letter,
+        elective_surgery_letter,
+    ):
         """
         Initializes the PDFARouting instance with a PDFA matrix, an alphabet,
         and a dictionary mapping activity letters to their indices.
@@ -127,10 +135,14 @@ class PDFARouting(ciw.routing.NodeRouting):
         if not hasattr(ind, "pre_op"):
             ind.pre_op = False
 
-        if ind.node == self.activity_dict[self.pre_op_letter] + (len(self.activity_dict) * self.subspec_dict[ind.customer_class]):
+        if ind.node == self.activity_dict[self.pre_op_letter] + (
+            len(self.activity_dict) * self.subspec_dict[ind.customer_class]
+        ):
             ind.pre_op = True
 
-        if ind.node == self.activity_dict[self.elective_surgery_letter] + (len(self.activity_dict) * self.subspec_dict[ind.customer_class]):
+        if ind.node == self.activity_dict[self.elective_surgery_letter] + (
+            len(self.activity_dict) * self.subspec_dict[ind.customer_class]
+        ):
             ind.pre_op = False
 
         if ind.level == "Low":
@@ -157,7 +169,11 @@ class PDFARouting(ciw.routing.NodeRouting):
 
         if ind.pre_op and alphabet.index(self.pre_op_letter) in possible_next_activity:
             combined = list(zip(p_values, possible_next_state, possible_next_activity))
-            filtered = [(p, s, a) for p, s, a in combined if a != alphabet.index(self.pre_op_letter)]
+            filtered = [
+                (p, s, a)
+                for p, s, a in combined
+                if a != alphabet.index(self.pre_op_letter)
+            ]
             if len(filtered) > 0:
                 p_values, possible_next_state, possible_next_activity = zip(*filtered)
                 total = sum(p_values)
@@ -491,7 +507,13 @@ class JockeyRouting(PDFARouting):
     """
 
     def __init__(
-        self, pdfa_matrix, alphabet, activity_dict, subspec_dict, pre_op_letter
+        self,
+        pdfa_matrix,
+        alphabet,
+        activity_dict,
+        subspec_dict,
+        pre_op_letter,
+        elective_surgery_letter,
     ):
         """
         Initializes the JockeyRouting instance with a PDFA matrix, an alphabet,
@@ -509,9 +531,18 @@ class JockeyRouting(PDFARouting):
             A dictionary mapping subspecialties to their corresponding indices.
         pre_op_letter : str
             The letter representing the pre-operative assessment activity.
+        elective_surgery_letter : str
+            The letter representing the elective surgery activity.
         """
         self.pre_op_letter = pre_op_letter
-        super().__init__(pdfa_matrix, alphabet, activity_dict, subspec_dict)
+        super().__init__(
+            pdfa_matrix,
+            alphabet,
+            activity_dict,
+            subspec_dict,
+            pre_op_letter,
+            elective_surgery_letter,
+        )
 
     def next_node_for_jockeying(self, ind):
         """
