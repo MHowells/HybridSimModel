@@ -178,8 +178,7 @@ class PDFARouting(ciw.routing.NodeRouting):
             possible_next_state.append("tau")
             possible_next_activity.append(-1)
 
-        rng = np.random.default_rng()
-        next_activity = rng.choice(a=possible_next_activity, p=p_values)
+        next_activity = ciw.rng.choice(a=possible_next_activity, p=p_values)
         next_state = possible_next_state[possible_next_activity.index(next_activity)]
 
         if next_activity == -1:
