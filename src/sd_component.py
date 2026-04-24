@@ -1060,6 +1060,71 @@ def get_time_dependent_recovery_rate(recovery_proportions, durations=np.NaN):
     return recovery_function
 
 
+def add_constant_lambda_warmup(
+    lambdas, ts, warmup_days=365 * 2, value="initial", shift_time=True
+):
+    """
+    Adds a warm-up period to the lambda values, where the lambda values
+    are constant and equal to the initial lambda values (or a specified
+    value) during the warm-up period.
+
+    Parameters
+    ----------
+    lambdas : array-like
+        Array of lambda values with shape (n_groups, T).
+    ts : array-like
+        Time vector corresponding to the lambda values.
+    warmup_days : int or float
+        Duration of the warm-up period in the same time units as ts
+        (default is 2 years).
+    value : "initial" or array-like
+        If "initial", the warm-up lambda values will be set to the
+        initial lambda values (i.e., lambdas[:, 0]).
+        If an array-like is provided, it should contain the lambda
+        values to use during the warm-up period for each group (shape
+        should be (n_groups,)).
+    shift_time : bool
+        If True, the time vector will be shifted so that the warm-up
+        period starts at t=0. If False, the time vector will include
+        negative values for the warm-up period (default is True).
+
+    Returns
+    -------
+    lambdas_with_warmup : np.ndarray
+        Lambda values with the warm-up period added, shape
+        (n_groups, T + warmup_points).
+    ts_with_warmup : np.ndarray
+        Time vector corresponding to the lambda values with warm-up,
+        shape (T + warmup_points,).
+    """
+    lambdas = np.asarray(lambdas)
+    ts = np.asarray(ts)
+    dt = ts[1] - ts[0]
+    warmup_points = int(round(warmup_days / dt))
+
+    if value == "initial":
+        warmup_values = lambdas[:, [0]]
+    else:
+        warmup_values = np.asarray(value, dtype=float).reshape(-1, 1)
+        if warmup_values.shape[0] != lambdas.shape[0]:
+            raise ValueError(
+                f"Expected {lambdas.shape[0]} warm-up values, "
+                f"but received {warmup_values.shape[0]}."
+            )
+
+    warmup_lambdas = np.repeat(warmup_values, warmup_points, axis=1)
+    lambdas_with_warmup = np.concatenate([warmup_lambdas, lambdas], axis=1)
+
+    if shift_time:
+        ts_with_warmup = np.arange(lambdas_with_warmup.shape[1]) * dt
+    else:
+        ts_with_warmup = np.concatenate(
+            [np.linspace(-warmup_days, -dt, warmup_points), ts]
+        )
+
+    return lambdas_with_warmup, ts_with_warmup
+
+
 def plot_stocks_over_time(
     stocks,
     t,
