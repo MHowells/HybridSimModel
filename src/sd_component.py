@@ -5,14 +5,19 @@ import matplotlib.pyplot as plt
 
 def strict_priority_gatekeeping(threshold):
     """
-    Strict severity-priority gatekeeping with a referral cap proportional
-    to total presenting demand.
+    Strict severity-priority gatekeeping where referral capacity is a 
+    proportion of the total presenting demand.
+
+    Patients are referred in severity order (e.g. high, medium, low),
+    where highest-priority demand is referred first, up to the total 
+    referral capacity. Lower-priority demand is only referred if there
+    is remaining capacity after referring all higher-priority demand.
 
     Parameters
     ----------
     threshold : float in [0, 1]
-        Proportion of the total presenting demand that can be referred
-        at each time step.
+        Proportion of the total presenting demand that can be referred.
+
     Returns
     -------
     function
@@ -83,6 +88,11 @@ def fixed_capacity_strict_gatekeeping(capacity):
     """
     Strict severity-priority gatekeeping with a fixed referral capacity
     per time step.
+
+    Patients are referred in severity order (e.g. high, medium, low),
+    where highest-priority demand is referred first, up to the total 
+    referral capacity. Lower-priority demand is only referred if there
+    is remaining capacity after referring all higher-priority demand.
 
     Parameters
     ----------
@@ -155,9 +165,10 @@ def fixed_capacity_strict_gatekeeping(capacity):
 
 def fixed_capacity_proportional_gatekeeping(capacity):
     """
-    Gatekeeping function with a fixed total referral capacity per time step,
-    allocated proportionally across severity groups according to presenting
-    demand.
+    Fixed-capacity gatekeeping where referral capacity is allocated 
+    proportionally across severity groups. Each severity group receives 
+    a share of the available capacity based on its share of total 
+    presenting demand.
 
     Parameters
     ----------
@@ -228,10 +239,15 @@ def fixed_capacity_proportional_gatekeeping(capacity):
     return gatekeeping_function
 
 
-def seasonal_gatekeeping(baseline=8, amplitude=2, period=365, phase_shift=0):
+def seasonal_capacity_gatekeeping(baseline=8, amplitude=2, period=365, phase_shift=0):
     """
-    Strict severity-priority gatekeeping with seasonally varying referral
-    capacity.
+    Strict severity-priority gatekeeping with a referral capacity that
+    varies seasonally according to a sinusoidal function.
+
+    Patients are referred in severity order (e.g. high, medium, low),
+    where highest-priority demand is referred first, up to the total 
+    referral capacity. Lower-priority demand is only referred if there
+    is remaining capacity after referring all higher-priority demand.
 
     Parameters
     ----------
@@ -326,14 +342,18 @@ def seasonal_gatekeeping(baseline=8, amplitude=2, period=365, phase_shift=0):
     return gatekeeping_function
 
 
-def proportional_access_gatekeeping(threshold):
+def equal_access_proportion_gatekeeping(access_proportion):
     """
-    Refers the same proportion of each severity stock that presents to primary
-    care.
+    Gatekeeping policy where the same referral proportion is applied to 
+    each severity group.
+
+    Each stock is treated independently, so there is no shared capacity 
+    limit and no priority ordering. This represents equal proportional 
+    access across all severity groups.
 
     Parameters
     ----------
-    threshold : float in [0, 1]
+    access_proportion : float in [0, 1]
         Proportion of the total presenting demand that can be referred at each
         time step.
     Returns
@@ -369,11 +389,11 @@ def proportional_access_gatekeeping(threshold):
         stocks = np.array(stocks, dtype=float)
 
         if stocks.ndim == 1:
-            lambdas = presenting_proportion * threshold * stocks
+            lambdas = presenting_proportion * access_proportion * stocks
             return lambdas
 
         elif stocks.ndim == 2:
-            lambdas = presenting_proportion * threshold * stocks
+            lambdas = presenting_proportion * access_proportion * stocks
             return lambdas
 
         else:
@@ -382,16 +402,16 @@ def proportional_access_gatekeeping(threshold):
     return gatekeeping_function
 
 
-def severity_specific_gatekeeping(proportions):
+def severity_specific_access_gatekeeping(proportions):
     """
-    Gatekeeping function that allows a fixed percentage of each severity group
-    to pass through per time step.
+    Gatekeeping function where each severity group has its own referral
+    proportion. There is no shared capacity limit and no sequential 
+    priority allocation.
 
     Parameters
     ----------
     proportions : list of floats
-        Proportions for each stock, e.g., [0.5, 0.3, 0.3] for high, medium, low
-        severity
+        Proportions for each stock, e.g. for high, medium, low severity.
 
     Returns
     -------
@@ -441,10 +461,12 @@ def severity_specific_gatekeeping(proportions):
 
 def partial_priority_gatekeeping(capacity, priority_relaxation):
     """
-    Gatekeeping function with fixed total referral capacity per time step,
-    where referrals are allocated as a blend of:
-    - strict severity-priority allocation
-    - proportional allocation across presenting demand
+    Fixed-capacity gatekeeping that blends strict-severity priority and 
+    proportional allocation.
+
+    A priority_relaxation value of 0 gives fully strict-priority 
+    allocation, while a value of 1 gives fully proportional allocation. 
+    Intermediate values give softer priority rules.
 
     Parameters
     ----------
@@ -453,8 +475,6 @@ def partial_priority_gatekeeping(capacity, priority_relaxation):
         per time step.
     priority_relaxation : float in [0, 1]
         Degree of relaxation in priority-based allocation.
-        0.0 = fully strict-priority
-        1.0 = fully proportional allocation
 
     Returns
     -------
@@ -551,8 +571,12 @@ def severity_responsive_gatekeeping(
     high_severity_capacity,
 ):
     """
-    Strict severity-priority gatekeeping with referral capacity that responds
-    to the proportion of presenting demand coming from the highest-severity group.
+    Strict severity-priority gatekeeping with referral capacity that 
+    changes based on the share of presenting demand from the 
+    highest-severity group.
+
+    If the high-severity share is above the specified threshold, the 
+    higher capacity is used. Otherwise, the lower capacity is used.
 
     Parameters
     ----------
@@ -659,8 +683,8 @@ def severity_responsive_gatekeeping(
 
 def time_phased_gatekeeping(change_times, gatekeeping_policies):
     """
-    Gatekeeping function that switches between multiple gatekeeping policies
-    at specified change times.
+    Switches between multiple gatekeeping policies at specified change 
+    times.
 
     Parameters
     ----------
@@ -668,7 +692,7 @@ def time_phased_gatekeeping(change_times, gatekeeping_policies):
         Sorted times at which the gatekeeping policy changes.
         If there are n policies, there must be n - 1 change times.
     gatekeeping_policies : list of functions
-        Gatekeeping functions to apply in each phase.
+        Gatekeeping policies to apply in each phase.
 
     Returns
     -------
