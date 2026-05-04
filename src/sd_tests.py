@@ -808,16 +808,16 @@ def test_seasonal_capacity_gatekeeping_raises_for_invalid_dimension():
 
 
 def test_equal_access_proportion_gatekeeping_returns_callable():
-    gatekeeping = sd.equal_access_proportion_gatekeeping(threshold=0.5)
+    gatekeeping = sd.equal_access_proportion_gatekeeping(access_proportion=0.5)
     assert callable(gatekeeping)
 
 
 def test_equal_access_proportion_gatekeeping_scalar():
     stocks = np.array([20.0, 30.0, 50.0])
     presenting_proportion = 0.4
-    threshold = 0.5
+    access_proportion = 0.5
 
-    gatekeeping = sd.equal_access_proportion_gatekeeping(threshold)
+    gatekeeping = sd.equal_access_proportion_gatekeeping(access_proportion)
     obtained = gatekeeping(
         stocks=stocks,
         population=stocks.sum(),
@@ -832,9 +832,9 @@ def test_equal_access_proportion_gatekeeping_scalar():
 def test_equal_access_proportion_gatekeeping_scalar_zero_threshold():
     stocks = np.array([20.0, 30.0, 50.0])
     presenting_proportion = 0.4
-    threshold = 0.0
+    access_proportion = 0.0
 
-    gatekeeping = sd.equal_access_proportion_gatekeeping(threshold)
+    gatekeeping = sd.equal_access_proportion_gatekeeping(access_proportion)
     obtained = gatekeeping(
         stocks=stocks,
         population=stocks.sum(),
@@ -849,9 +849,9 @@ def test_equal_access_proportion_gatekeeping_scalar_zero_threshold():
 def test_equal_access_proportion_gatekeeping_scalar_full_threshold():
     stocks = np.array([20.0, 30.0, 50.0])
     presenting_proportion = 0.4
-    threshold = 1.0
+    access_proportion = 1.0
 
-    gatekeeping = sd.equal_access_proportion_gatekeeping(threshold)
+    gatekeeping = sd.equal_access_proportion_gatekeeping(access_proportion)
     obtained = gatekeeping(
         stocks=stocks,
         population=stocks.sum(),
@@ -866,9 +866,9 @@ def test_equal_access_proportion_gatekeeping_scalar_full_threshold():
 def test_equal_access_proportion_gatekeeping_scalar_empty_stocks():
     stocks = np.array([0.0, 0.0, 0.0])
     presenting_proportion = 0.4
-    threshold = 0.5
+    access_proportion = 0.5
 
-    gatekeeping = sd.equal_access_proportion_gatekeeping(threshold)
+    gatekeeping = sd.equal_access_proportion_gatekeeping(access_proportion)
     obtained = gatekeeping(
         stocks=stocks,
         population=stocks.sum(),
@@ -889,9 +889,9 @@ def test_equal_access_proportion_gatekeeping_time_series_case():
         ]
     )
     presenting_proportion = 0.4
-    threshold = 0.5
+    access_proportion = 0.5
 
-    gatekeeping = sd.equal_access_proportion_gatekeeping(threshold)
+    gatekeeping = sd.equal_access_proportion_gatekeeping(access_proportion)
 
     obtained = gatekeeping(
         stocks=stocks,
@@ -912,7 +912,7 @@ def test_equal_access_proportion_gatekeeping_time_series_case():
 
 
 def test_equal_access_proportion_gatekeeping_raises_for_invalid_dimension():
-    gatekeeping = sd.equal_access_proportion_gatekeeping(threshold=0.5)
+    gatekeeping = sd.equal_access_proportion_gatekeeping(access_proportion=0.5)
     stocks = np.zeros((3, 2, 2))
 
     with pytest.raises(
@@ -1614,7 +1614,7 @@ def test_time_phased_gatekeeping_raises_for_unsorted_change_times():
             gatekeeping_policies=[
                 sd.fixed_capacity_strict_gatekeeping(capacity=15.0),
                 sd.fixed_capacity_proportional_gatekeeping(capacity=15.0),
-                sd.proportional_access_gatekeeping(threshold=0.5),
+                sd.equal_access_proportion_gatekeeping(access_proportion=0.5),
             ],
         )
 
@@ -1683,7 +1683,7 @@ def test_time_phased_gatekeeping_scalar_after_last_change_uses_final_policy():
 
     phase_one = sd.fixed_capacity_strict_gatekeeping(capacity=15.0)
     phase_two = sd.fixed_capacity_proportional_gatekeeping(capacity=15.0)
-    phase_three = sd.proportional_access_gatekeeping(threshold=0.5)
+    phase_three = sd.equal_access_proportion_gatekeeping(access_proportion=0.5)
 
     gatekeeping = sd.time_phased_gatekeeping(
         change_times=[10.0, 20.0],
@@ -1713,7 +1713,7 @@ def test_time_phased_gatekeeping_scalar_between_changes_uses_middle_policy():
 
     phase_one = sd.fixed_capacity_strict_gatekeeping(capacity=15.0)
     phase_two = sd.fixed_capacity_proportional_gatekeeping(capacity=15.0)
-    phase_three = sd.proportional_access_gatekeeping(threshold=0.5)
+    phase_three = sd.equal_access_proportion_gatekeeping(access_proportion=0.5)
 
     gatekeeping = sd.time_phased_gatekeeping(
         change_times=[10.0, 20.0],
@@ -1750,7 +1750,7 @@ def test_time_phased_gatekeeping_time_series_crosses_multiple_phases():
 
     phase_one = sd.fixed_capacity_strict_gatekeeping(capacity=15.0)
     phase_two = sd.fixed_capacity_proportional_gatekeeping(capacity=15.0)
-    phase_three = sd.proportional_access_gatekeeping(threshold=0.5)
+    phase_three = sd.equal_access_proportion_gatekeeping(access_proportion=0.5)
 
     gatekeeping = sd.time_phased_gatekeeping(
         change_times=[10.0, 20.0],
