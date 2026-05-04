@@ -518,18 +518,18 @@ def test_fixed_capacity_proportional_gatekeeping_raises_for_invalid_dimension():
         )
 
 
-def test_seasonal_gatekeeping_returns_callable():
-    gatekeeping = sd.seasonal_gatekeeping(
+def test_seasonal_capacity_gatekeeping_returns_callable():
+    gatekeeping = sd.seasonal_capacity_gatekeeping(
         baseline=8, amplitude=2, period=365, phase_shift=0
     )
     assert callable(gatekeeping)
 
 
-def test_seasonal_gatekeeping_scalar_at_baseline_capacity():
+def test_seasonal_capacity_gatekeeping_scalar_at_baseline_capacity():
     stocks = np.array([20.0, 30.0, 50.0])
     presenting_proportion = 0.4
 
-    gatekeeping = sd.seasonal_gatekeeping(
+    gatekeeping = sd.seasonal_capacity_gatekeeping(
         baseline=10.0,
         amplitude=2.0,
         period=365.0,
@@ -547,11 +547,11 @@ def test_seasonal_gatekeeping_scalar_at_baseline_capacity():
     np.testing.assert_allclose(obtained, expected)
 
 
-def test_seasonal_gatekeeping_scalar_partial_medium():
+def test_seasonal_capacity_gatekeeping_scalar_partial_medium():
     stocks = np.array([20.0, 30.0, 50.0])
     presenting_proportion = 0.4
 
-    gatekeeping = sd.seasonal_gatekeeping(
+    gatekeeping = sd.seasonal_capacity_gatekeeping(
         baseline=15.0,
         amplitude=0.0,
         period=365.0,
@@ -569,11 +569,11 @@ def test_seasonal_gatekeeping_scalar_partial_medium():
     np.testing.assert_allclose(obtained, expected)
 
 
-def test_seasonal_gatekeeping_scalar_leftovers_to_final_group():
+def test_seasonal_capacity_gatekeeping_scalar_leftovers_to_final_group():
     stocks = np.array([10.0, 10.0, 100.0])
     presenting_proportion = 0.5
 
-    gatekeeping = sd.seasonal_gatekeeping(
+    gatekeeping = sd.seasonal_capacity_gatekeeping(
         baseline=12.0,
         amplitude=0.0,
         period=365.0,
@@ -591,11 +591,11 @@ def test_seasonal_gatekeeping_scalar_leftovers_to_final_group():
     np.testing.assert_allclose(obtained, expected)
 
 
-def test_seasonal_gatekeeping_scalar_no_capacity():
+def test_seasonal_capacity_gatekeeping_scalar_no_capacity():
     stocks = np.array([20.0, 30.0, 50.0])
     presenting_proportion = 0.4
 
-    gatekeeping = sd.seasonal_gatekeeping(
+    gatekeeping = sd.seasonal_capacity_gatekeeping(
         baseline=0.0,
         amplitude=0.0,
         period=365.0,
@@ -613,11 +613,11 @@ def test_seasonal_gatekeeping_scalar_no_capacity():
     np.testing.assert_allclose(obtained, expected)
 
 
-def test_seasonal_gatekeeping_scalar_empty_stocks():
+def test_seasonal_capacity_gatekeeping_scalar_empty_stocks():
     stocks = np.array([0.0, 0.0, 0.0])
     presenting_proportion = 0.4
 
-    gatekeeping = sd.seasonal_gatekeeping(
+    gatekeeping = sd.seasonal_capacity_gatekeeping(
         baseline=10.0,
         amplitude=5.0,
         period=365.0,
@@ -635,11 +635,11 @@ def test_seasonal_gatekeeping_scalar_empty_stocks():
     np.testing.assert_allclose(obtained, expected)
 
 
-def test_seasonal_gatekeeping_scalar_full_capacity():
+def test_seasonal_capacity_gatekeeping_scalar_full_capacity():
     stocks = np.array([20.0, 30.0, 50.0])
     presenting_proportion = 0.4
 
-    gatekeeping = sd.seasonal_gatekeeping(
+    gatekeeping = sd.seasonal_capacity_gatekeeping(
         baseline=50.0,
         amplitude=0.0,
         period=365.0,
@@ -657,7 +657,7 @@ def test_seasonal_gatekeeping_scalar_full_capacity():
     np.testing.assert_allclose(obtained, expected)
 
 
-def test_seasonal_gatekeeping_time_series_case():
+def test_seasonal_capacity_gatekeeping_time_series_case():
     stocks = np.array(
         [
             [20.0, 20.0, 20.0],
@@ -668,7 +668,7 @@ def test_seasonal_gatekeeping_time_series_case():
     presenting_proportion = 0.4
     t = np.array([0.0, 1.0, 2.0])
 
-    gatekeeping = sd.seasonal_gatekeeping(
+    gatekeeping = sd.seasonal_capacity_gatekeeping(
         baseline=10.0,
         amplitude=5.0,
         period=4.0,
@@ -693,17 +693,17 @@ def test_seasonal_gatekeeping_time_series_case():
     np.testing.assert_allclose(obtained, expected)
 
 
-def test_seasonal_gatekeeping_phase_shift_changes_capacity():
+def test_seasonal_capacity_gatekeeping_phase_shift_changes_capacity():
     stocks = np.array([20.0, 30.0, 50.0])
     presenting_proportion = 0.4
 
-    gatekeeping_no_shift = sd.seasonal_gatekeeping(
+    gatekeeping_no_shift = sd.seasonal_capacity_gatekeeping(
         baseline=10.0,
         amplitude=5.0,
         period=4.0,
         phase_shift=0.0,
     )
-    gatekeeping_shifted = sd.seasonal_gatekeeping(
+    gatekeeping_shifted = sd.seasonal_capacity_gatekeeping(
         baseline=10.0,
         amplitude=5.0,
         period=4.0,
@@ -730,11 +730,11 @@ def test_seasonal_gatekeeping_phase_shift_changes_capacity():
     np.testing.assert_allclose(obtained_shifted, expected_shifted)
 
 
-def test_seasonal_gatekeeping_negative_capacity_clipped_to_zero():
+def test_seasonal_capacity_gatekeeping_negative_capacity_clipped_to_zero():
     stocks = np.array([20.0, 30.0, 50.0])
     presenting_proportion = 0.4
 
-    gatekeeping = sd.seasonal_gatekeeping(
+    gatekeeping = sd.seasonal_capacity_gatekeeping(
         baseline=1.0,
         amplitude=5.0,
         period=4.0,
@@ -752,7 +752,7 @@ def test_seasonal_gatekeeping_negative_capacity_clipped_to_zero():
     np.testing.assert_allclose(obtained, expected)
 
 
-def test_seasonal_gatekeeping_time_series_zero_capacity_continue_branch():
+def test_seasonal_capacity_gatekeeping_time_series_zero_capacity_continue_branch():
     stocks = np.array(
         [
             [20.0, 20.0, 20.0],
@@ -762,7 +762,7 @@ def test_seasonal_gatekeeping_time_series_zero_capacity_continue_branch():
     )
     presenting_proportion = 0.4
 
-    gatekeeping = sd.seasonal_gatekeeping(
+    gatekeeping = sd.seasonal_capacity_gatekeeping(
         baseline=1.0,
         amplitude=1.0,
         period=4.0,
@@ -787,8 +787,8 @@ def test_seasonal_gatekeeping_time_series_zero_capacity_continue_branch():
     np.testing.assert_allclose(obtained, expected)
 
 
-def test_seasonal_gatekeeping_raises_for_invalid_dimension():
-    gatekeeping = sd.seasonal_gatekeeping(
+def test_seasonal_capacity_gatekeeping_raises_for_invalid_dimension():
+    gatekeeping = sd.seasonal_capacity_gatekeeping(
         baseline=8.0,
         amplitude=2.0,
         period=365.0,
@@ -807,17 +807,17 @@ def test_seasonal_gatekeeping_raises_for_invalid_dimension():
         )
 
 
-def test_proportional_access_gatekeeping_returns_callable():
-    gatekeeping = sd.proportional_access_gatekeeping(threshold=0.5)
+def test_equal_access_proportion_gatekeeping_returns_callable():
+    gatekeeping = sd.equal_access_proportion_gatekeeping(threshold=0.5)
     assert callable(gatekeeping)
 
 
-def test_proportional_access_gatekeeping_scalar():
+def test_equal_access_proportion_gatekeeping_scalar():
     stocks = np.array([20.0, 30.0, 50.0])
     presenting_proportion = 0.4
     threshold = 0.5
 
-    gatekeeping = sd.proportional_access_gatekeeping(threshold)
+    gatekeeping = sd.equal_access_proportion_gatekeeping(threshold)
     obtained = gatekeeping(
         stocks=stocks,
         population=stocks.sum(),
@@ -829,12 +829,12 @@ def test_proportional_access_gatekeeping_scalar():
     np.testing.assert_allclose(obtained, expected)
 
 
-def test_proportional_access_gatekeeping_scalar_zero_threshold():
+def test_equal_access_proportion_gatekeeping_scalar_zero_threshold():
     stocks = np.array([20.0, 30.0, 50.0])
     presenting_proportion = 0.4
     threshold = 0.0
 
-    gatekeeping = sd.proportional_access_gatekeeping(threshold)
+    gatekeeping = sd.equal_access_proportion_gatekeeping(threshold)
     obtained = gatekeeping(
         stocks=stocks,
         population=stocks.sum(),
@@ -846,12 +846,12 @@ def test_proportional_access_gatekeeping_scalar_zero_threshold():
     np.testing.assert_allclose(obtained, expected)
 
 
-def test_proportional_access_gatekeeping_scalar_full_threshold():
+def test_equal_access_proportion_gatekeeping_scalar_full_threshold():
     stocks = np.array([20.0, 30.0, 50.0])
     presenting_proportion = 0.4
     threshold = 1.0
 
-    gatekeeping = sd.proportional_access_gatekeeping(threshold)
+    gatekeeping = sd.equal_access_proportion_gatekeeping(threshold)
     obtained = gatekeeping(
         stocks=stocks,
         population=stocks.sum(),
@@ -863,12 +863,12 @@ def test_proportional_access_gatekeeping_scalar_full_threshold():
     np.testing.assert_allclose(obtained, expected)
 
 
-def test_proportional_access_gatekeeping_scalar_empty_stocks():
+def test_equal_access_proportion_gatekeeping_scalar_empty_stocks():
     stocks = np.array([0.0, 0.0, 0.0])
     presenting_proportion = 0.4
     threshold = 0.5
 
-    gatekeeping = sd.proportional_access_gatekeeping(threshold)
+    gatekeeping = sd.equal_access_proportion_gatekeeping(threshold)
     obtained = gatekeeping(
         stocks=stocks,
         population=stocks.sum(),
@@ -880,7 +880,7 @@ def test_proportional_access_gatekeeping_scalar_empty_stocks():
     np.testing.assert_allclose(obtained, expected)
 
 
-def test_proportional_access_gatekeeping_time_series_case():
+def test_equal_access_proportion_gatekeeping_time_series_case():
     stocks = np.array(
         [
             [20.0, 20.0, 20.0],
@@ -891,7 +891,7 @@ def test_proportional_access_gatekeeping_time_series_case():
     presenting_proportion = 0.4
     threshold = 0.5
 
-    gatekeeping = sd.proportional_access_gatekeeping(threshold)
+    gatekeeping = sd.equal_access_proportion_gatekeeping(threshold)
 
     obtained = gatekeeping(
         stocks=stocks,
@@ -911,8 +911,8 @@ def test_proportional_access_gatekeeping_time_series_case():
     np.testing.assert_allclose(obtained, expected)
 
 
-def test_proportional_access_gatekeeping_raises_for_invalid_dimension():
-    gatekeeping = sd.proportional_access_gatekeeping(threshold=0.5)
+def test_equal_access_proportion_gatekeeping_raises_for_invalid_dimension():
+    gatekeeping = sd.equal_access_proportion_gatekeeping(threshold=0.5)
     stocks = np.zeros((3, 2, 2))
 
     with pytest.raises(
@@ -926,17 +926,17 @@ def test_proportional_access_gatekeeping_raises_for_invalid_dimension():
         )
 
 
-def test_severity_specific_gatekeeping_returns_callable():
-    gatekeeping = sd.severity_specific_gatekeeping(proportions=[0.5, 0.3, 0.1])
+def test_severity_specific_access_gatekeeping_returns_callable():
+    gatekeeping = sd.severity_specific_access_gatekeeping(proportions=[0.5, 0.3, 0.1])
     assert callable(gatekeeping)
 
 
-def test_severity_specific_gatekeeping_scalar():
+def test_severity_specific_access_gatekeeping_scalar():
     stocks = np.array([20.0, 30.0, 50.0])
     presenting_proportion = 0.4
     proportions = np.array([0.5, 0.3, 0.1])
 
-    gatekeeping = sd.severity_specific_gatekeeping(proportions)
+    gatekeeping = sd.severity_specific_access_gatekeeping(proportions)
     obtained = gatekeeping(
         stocks=stocks,
         population=stocks.sum(),
@@ -948,12 +948,12 @@ def test_severity_specific_gatekeeping_scalar():
     np.testing.assert_allclose(obtained, expected)
 
 
-def test_severity_specific_gatekeeping_scalar_zero_proportions():
+def test_severity_specific_access_gatekeeping_scalar_zero_proportions():
     stocks = np.array([20.0, 30.0, 50.0])
     presenting_proportion = 0.4
     proportions = np.array([0.0, 0.0, 0.0])
 
-    gatekeeping = sd.severity_specific_gatekeeping(proportions)
+    gatekeeping = sd.severity_specific_access_gatekeeping(proportions)
     obtained = gatekeeping(
         stocks=stocks,
         population=stocks.sum(),
@@ -965,12 +965,12 @@ def test_severity_specific_gatekeeping_scalar_zero_proportions():
     np.testing.assert_allclose(obtained, expected)
 
 
-def test_severity_specific_gatekeeping_scalar_full_proportions():
+def test_severity_specific_access_gatekeeping_scalar_full_proportions():
     stocks = np.array([20.0, 30.0, 50.0])
     presenting_proportion = 0.4
     proportions = np.array([1.0, 1.0, 1.0])
 
-    gatekeeping = sd.severity_specific_gatekeeping(proportions)
+    gatekeeping = sd.severity_specific_access_gatekeeping(proportions)
     obtained = gatekeeping(
         stocks=stocks,
         population=stocks.sum(),
@@ -982,12 +982,12 @@ def test_severity_specific_gatekeeping_scalar_full_proportions():
     np.testing.assert_allclose(obtained, expected)
 
 
-def test_severity_specific_gatekeeping_scalar_empty_stocks():
+def test_severity_specific_access_gatekeeping_scalar_empty_stocks():
     stocks = np.array([0.0, 0.0, 0.0])
     presenting_proportion = 0.4
     proportions = np.array([0.5, 0.3, 0.1])
 
-    gatekeeping = sd.severity_specific_gatekeeping(proportions)
+    gatekeeping = sd.severity_specific_access_gatekeeping(proportions)
     obtained = gatekeeping(
         stocks=stocks,
         population=stocks.sum(),
@@ -999,7 +999,7 @@ def test_severity_specific_gatekeeping_scalar_empty_stocks():
     np.testing.assert_allclose(obtained, expected)
 
 
-def test_severity_specific_gatekeeping_time_series_case():
+def test_severity_specific_access_gatekeeping_time_series_case():
     stocks = np.array(
         [
             [20.0, 20.0, 20.0],
@@ -1010,7 +1010,7 @@ def test_severity_specific_gatekeeping_time_series_case():
     presenting_proportion = 0.4
     proportions = np.array([0.5, 0.3, 0.1])
 
-    gatekeeping = sd.severity_specific_gatekeeping(proportions)
+    gatekeeping = sd.severity_specific_access_gatekeeping(proportions)
 
     obtained = gatekeeping(
         stocks=stocks,
@@ -1030,8 +1030,8 @@ def test_severity_specific_gatekeeping_time_series_case():
     np.testing.assert_allclose(obtained, expected)
 
 
-def test_severity_specific_gatekeeping_raises_for_invalid_dimension():
-    gatekeeping = sd.severity_specific_gatekeeping(proportions=[0.5, 0.3, 0.1])
+def test_severity_specific_access_gatekeeping_raises_for_invalid_dimension():
+    gatekeeping = sd.severity_specific_access_gatekeeping(proportions=[0.5, 0.3, 0.1])
     stocks = np.zeros((3, 2, 2))
 
     with pytest.raises(
