@@ -1084,6 +1084,63 @@ def get_time_dependent_recovery_rate(recovery_proportions, durations=np.NaN):
     return recovery_function
 
 
+def get_boundary_based_deterioration_rates(
+    category_widths,
+    shift_proportion,
+    shift_interval_days,
+):
+    """
+    Boundary-based deterioration on an underlying severity scale, 
+    discretised into Low, Medium, and High regions.
+
+    Every shift_interval_days, patients are assumed to shift by
+    shift_proportion along the underlying scale. Only those near the
+    boundary of a category move into the next category.
+
+    Parameters
+    ----------
+    category_widths : tuple of floats 
+        Widths of the Low, Medium, and High regions on the underlying 
+        severity scale. Must sum to 1.
+    shift_proportion : float
+        Proportion of the severity scale moved over each interval.
+    shift_interval_days : float
+        Time interval over which the underlying shift occurs.
+
+    Returns
+    -------
+    function
+        Function returning the Low-to-Medium and Medium-to-High 
+        transition rates.
+    """
+    low_width, med_width, high_width = category_widths
+
+    if not np.isclose(low_width + med_width + high_width, 1.0):
+        raise ValueError("category_widths must sum to 1.")
+
+    if low_width <= 0 or med_width <= 0 or high_width <= 0:
+        raise ValueError("all category widths must be positive.")
+
+    if shift_proportion < 0:
+        raise ValueError("shift_proportion must be non-negative.")
+
+    if shift_interval_days <= 0:
+        raise ValueError("shift_interval_days must be positive.")
+
+    if shift_proportion > min(low_width, med_width):
+        raise ValueError(
+            "shift_proportion must be less than or equal to the smallest transition category width."
+        )
+
+    r_lm = shift_proportion / (low_width * shift_interval_days)
+    r_mh = shift_proportion / (med_width * shift_interval_days)
+
+    def deterioration_function(t):
+        return r_lm, r_mh
+
+    return deterioration_function
+
+
 def add_constant_lambda_warmup(
     lambdas, ts, warmup_days=365 * 2, value="initial", shift_time=True
 ):
