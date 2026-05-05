@@ -1,3 +1,5 @@
+from array import array
+
 import numpy as np
 from scipy.integrate import odeint
 import pytest
@@ -513,6 +515,233 @@ def test_fixed_capacity_proportional_gatekeeping_raises_for_invalid_dimension():
         gatekeeping(
             stocks=stocks,
             population=1.0,
+            presenting_proportion=0.4,
+            t=0.0,
+        )
+
+
+def test_weighted_priority_gatekeeping_scalar_returns_expected_values():
+    stocks = np.array([20.0, 30.0, 50.0])
+    presenting_proportion = 0.4
+
+    gatekeeping = sd.weighted_priority_gatekeeping(
+        threshold=0.5,
+        weights=(5.0, 2.0, 1.0),
+    )
+
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected = np.array([8.0, 6.54545455, 5.45454545])
+
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_weighted_priority_gatekeeping_scalar_redistributes_remaining_capacity():
+    stocks = np.array([1.0, 10.0, 10.0])
+    presenting_proportion = 1.0
+
+    gatekeeping = sd.weighted_priority_gatekeeping(
+        threshold=0.8,
+        weights=(100.0, 1.0, 1.0),
+    )
+
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected = np.array([1.0, 7.9, 7.9])
+
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_weighted_priority_gatekeeping_scalar_empty_stocks():
+    stocks = np.array([0.0, 0.0, 0.0])
+
+    gatekeeping = sd.weighted_priority_gatekeeping(
+        threshold=0.5,
+        weights=(5.0, 2.0, 1.0),
+    )
+
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=0.0,
+        presenting_proportion=0.4,
+        t=0.0,
+    )
+
+    np.testing.assert_allclose(obtained, np.zeros_like(stocks))
+
+
+def test_weighted_priority_gatekeeping_returns_equal_allocation_with_equal_weights():
+    stocks = np.array([20.0, 30.0, 50.0])
+    presenting_proportion = 0.4
+
+    gatekeeping = sd.weighted_priority_gatekeeping(
+        threshold=0.5,
+        weights=(1.0, 1.0, 1.0),
+    )
+
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    demand = presenting_proportion * stocks
+    expected = 0.5 * demand
+
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_weighted_priority_gatekeeping_gives_higher_priority_groups_larger_allocations_when_demands_are_equal():
+    stocks = np.array([10.0, 10.0, 10.0])
+    presenting_proportion = 1.0
+
+    gatekeeping = sd.weighted_priority_gatekeeping(
+        threshold=0.6,
+        weights=(3.0, 2.0, 1.0),
+    )
+
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    assert obtained[0] > obtained[1] > obtained[2]
+    np.testing.assert_allclose(obtained.sum(), 0.6 * stocks.sum())
+
+
+def test_weighted_priority_gatekeeping_zero_threshold():
+    stocks = np.array([20.0, 30.0, 50.0])
+
+    gatekeeping = sd.weighted_priority_gatekeeping(
+        threshold=0.0,
+        weights=(5.0, 2.0, 1.0),
+    )
+
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=0.4,
+        t=0.0,
+    )
+
+    np.testing.assert_allclose(obtained, np.zeros_like(stocks))
+
+
+def test_weighted_priority_gatekeeping_full_threshold():
+    stocks = np.array([20.0, 30.0, 50.0])
+
+    gatekeeping = sd.weighted_priority_gatekeeping(
+        threshold=1.0,
+        weights=(3.0, 2.0, 1.0),
+    )
+
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=0.4,
+        t=0.0,
+    )
+
+    expected = np.array([8.0, 12.0, 20.0])
+
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_weighted_priority_gatekeeping_time_series_returns_expected_values():
+    stocks = np.array([
+        [20.0, 10.0, 30.0],
+        [30.0, 20.0, 10.0],
+        [50.0, 40.0, 60.0],
+    ])
+    presenting_proportion = 0.4
+    t = np.array([0.0, 1.0, 2.0])
+
+    gatekeeping = sd.weighted_priority_gatekeeping(
+        threshold=0.5,
+        weights=(5.0, 2.0, 1.0),
+    )
+
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(axis=0),
+        presenting_proportion=presenting_proportion,
+        t=t,
+    )
+
+    expected = np.array([
+        [8.0, 4.0, 12.0],
+        [6.54545455, 5.0, 2.0],
+        [5.45454545, 5.0, 6.0],
+    ])
+
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_weighted_priority_gatekeeping_breaks_when_only_zero_weight_eligible_groups_remain():
+    stocks = np.array([1.0, 10.0, 10.0])
+    presenting_proportion = 1.0
+
+    gatekeeping = sd.weighted_priority_gatekeeping(
+        threshold=0.8,
+        weights=(1.0, 0.0, 0.0),
+    )
+
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    expected = np.array([1.0, 0.0, 0.0])
+
+    np.testing.assert_allclose(obtained, expected)
+
+
+def test_weighted_priority_gatekeeping_raises_value_error_when_weights_contain_negative_values():
+    with pytest.raises(ValueError, match="weights must be non-negative."):
+        sd.weighted_priority_gatekeeping(
+            threshold=0.5,
+            weights=(5.0, -2.0, 1.0),
+        )
+
+
+def test_weighted_priority_gatekeeping_raises_value_error_when_all_weights_are_zero():
+    with pytest.raises(ValueError, match="at least one weight must be positive."):
+        sd.weighted_priority_gatekeeping(
+            threshold=0.5,
+            weights=(0.0, 0.0, 0.0),
+        )
+
+
+def test_weighted_priority_gatekeeping_raises_value_error_for_invalid_stock_dimension():
+    gatekeeping = sd.weighted_priority_gatekeeping(
+        threshold=0.5,
+        weights=(5.0, 2.0, 1.0),
+    )
+
+    stocks = np.zeros((3, 2, 2))
+
+    with pytest.raises(
+        ValueError,
+        match="stocks must be a 1D or 2D array-like structure.",
+    ):
+        gatekeeping(
+            stocks=stocks,
+            population=0.0,
             presenting_proportion=0.4,
             t=0.0,
         )

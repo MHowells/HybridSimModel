@@ -239,6 +239,115 @@ def fixed_capacity_proportional_gatekeeping(capacity):
     return gatekeeping_function
 
 
+def weighted_priority_gatekeeping(threshold, weights):
+    """
+    Soft severity-priority gatekeeping with capped weighted allocation.
+    Total referral capacity is proportional to total presenting demand,
+    but allocates the capacity across severity groups according to 
+    the specified weights. 
+
+    Parameters
+    ----------
+    threshold : float
+        Proportion of total presenting demand that can be referred.
+
+    weights : tuple/list/array
+        Priority weights in SD stock order. Larger weight means stronger 
+        referral priority.
+
+    Returns
+    -------
+    function
+        Function to calculate lambda values for each stock.
+    """
+
+    weights = np.asarray(weights, dtype=float)
+
+    if np.any(weights < 0):
+        raise ValueError("weights must be non-negative.")
+
+    if np.all(weights == 0):
+        raise ValueError("at least one weight must be positive.")
+
+    def allocate_one_timepoint(demand, capacity):
+        """
+        Allocate one time point of capacity across severity groups 
+        using weighted proportional priority with demand caps.
+        """
+        demand = np.asarray(demand, dtype=float)
+        lambdas = np.zeros_like(demand)
+        remaining_capacity = float(capacity)
+        eligible = demand > 0
+
+        while remaining_capacity > 1e-12 and np.any(eligible):
+            weighted_demand = weights * demand * eligible
+            total_weighted_demand = weighted_demand.sum()
+
+            if total_weighted_demand <= 1e-12:
+                break
+
+            proposed = remaining_capacity * weighted_demand / total_weighted_demand
+            remaining_demand = demand - lambdas
+            allocation = np.minimum(proposed, remaining_demand)
+            lambdas += allocation
+            remaining_capacity -= allocation.sum()
+            eligible = (demand - lambdas) > 1e-12
+
+        return lambdas
+
+    def gatekeeping_function(stocks, population, presenting_proportion, t):
+        """
+        Calculates lambda values by allocating capacity proportional to 
+        total presenting demand across severity groups using weighted
+        priority.
+
+        Parameters
+        ----------
+        stocks : list/array of scalars or arrays
+            Stock levels for each severity group, ordered by priority
+            (e.g. high, medium, low).
+        population : float or array
+            Included for compatibility with the SD framework, but unused.
+        presenting_proportion : float in [0, 1]
+            Proportion of each stock presenting to primary care.
+        t : float or array
+            Time input (unused here, but included for compatibility).
+
+        Returns
+        -------
+        np.ndarray
+            Referral flows for each stock, either as:
+            - shape (3,) for scalar input
+            - shape (3, T) for time-series input
+        """ 
+        stocks = np.asarray(stocks, dtype=float)
+
+        if stocks.ndim == 1:
+            demand = presenting_proportion * stocks
+            capacity = threshold * demand.sum()
+
+            return allocate_one_timepoint(demand, capacity)
+
+        elif stocks.ndim == 2:
+            demand = presenting_proportion * stocks
+            n_times = demand.shape[1]
+            lambdas = np.zeros_like(demand)
+            capacity = threshold * demand.sum(axis=0)
+
+            for k in range(n_times):
+                lambdas[:, k] = allocate_one_timepoint(
+                    demand=demand[:, k],
+                    capacity=capacity[k],
+                )
+
+            return lambdas
+
+        else:
+            raise ValueError("stocks must be a 1D or 2D array-like structure.")
+
+    return gatekeeping_function
+
+
 def seasonal_capacity_gatekeeping(baseline=8, amplitude=2, period=365, phase_shift=0):
     """
     Strict severity-priority gatekeeping with a referral capacity that
