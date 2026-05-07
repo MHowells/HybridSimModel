@@ -2292,8 +2292,8 @@ def test_get_time_dependent_recovery_rate_uses_single_rate_indefinitely_when_dur
     assert recovery_fn(1000, stock_size) == 100
 
 
-def test_boundary_based_deterioration_returns_expected_transition_rates():
-    deterioration_fn = sd.get_boundary_based_deterioration_rates(
+def test_discretised_deterioration_returns_expected_transition_rates():
+    deterioration_fn = sd.get_discretised_deterioration_rates(
         category_widths=(0.50, 0.25, 0.25),
         shift_proportion=0.05,
         shift_interval_days=182.5,
@@ -2307,47 +2307,47 @@ def test_boundary_based_deterioration_returns_expected_transition_rates():
     np.testing.assert_allclose(obtained, (expected_r_lm, expected_r_mh))
 
 
-def test_boundary_based_deterioration_raises_value_error_when_category_widths_do_not_sum_to_one():
+def test_discretised_deterioration_raises_value_error_when_category_widths_do_not_sum_to_one():
     with pytest.raises(ValueError, match="category_widths must sum to 1."):
-        sd.get_boundary_based_deterioration_rates(
+        sd.get_discretised_deterioration_rates(
             category_widths=(0.40, 0.25, 0.25),
             shift_proportion=0.05,
             shift_interval_days=182.5,
         )
 
-def test_boundary_based_deterioration_raises_value_error_when_any_category_width_is_non_positive():
+def test_discretised_deterioration_raises_value_error_when_any_category_width_is_non_positive():
     with pytest.raises(ValueError, match="all category widths must be positive."):
-        sd.get_boundary_based_deterioration_rates(
+        sd.get_discretised_deterioration_rates(
             category_widths=(0.50, 0.00, 0.50),
             shift_proportion=0.05,
             shift_interval_days=182.5,
         )
 
 
-def test_boundary_based_deterioration_raises_value_error_when_shift_proportion_is_negative():
+def test_discretised_deterioration_raises_value_error_when_shift_proportion_is_negative():
     with pytest.raises(ValueError, match="shift_proportion must be non-negative."):
-        sd.get_boundary_based_deterioration_rates(
+        sd.get_discretised_deterioration_rates(
             category_widths=(0.50, 0.25, 0.25),
             shift_proportion=-0.01,
             shift_interval_days=182.5,
         )
 
 
-def test_boundary_based_deterioration_raises_value_error_when_shift_interval_days_is_non_positive():
+def test_discretised_deterioration_raises_value_error_when_shift_interval_days_is_non_positive():
     with pytest.raises(ValueError, match="shift_interval_days must be positive."):
-        sd.get_boundary_based_deterioration_rates(
+        sd.get_discretised_deterioration_rates(
             category_widths=(0.50, 0.25, 0.25),
             shift_proportion=0.05,
             shift_interval_days=-1.0,
         )
 
 
-def test_boundary_based_deterioration_raises_value_error_when_shift_proportion_exceeds_smallest_transition_width():
+def test_discretised_deterioration_raises_value_error_when_shift_proportion_exceeds_smallest_transition_width():
     with pytest.raises(
         ValueError,
         match="shift_proportion must be less than or equal to the smallest transition category width.",
     ):
-        sd.get_boundary_based_deterioration_rates(
+        sd.get_discretised_deterioration_rates(
             category_widths=(0.50, 0.25, 0.25),
             shift_proportion=0.30,
             shift_interval_days=182.5,
