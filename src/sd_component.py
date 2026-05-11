@@ -2,6 +2,11 @@ import numpy as np
 from scipy.integrate import odeint
 import matplotlib.pyplot as plt
 
+LOW = 0
+MEDIUM = 1
+HIGH = 2
+PRIORITY_ORDER = [HIGH, MEDIUM, LOW]
+
 
 def strict_priority_gatekeeping(threshold):
     """
@@ -33,8 +38,7 @@ def strict_priority_gatekeeping(threshold):
         Parameters
         ----------
         stocks : list/array of scalars or arrays
-            Stock levels for each severity group, ordered by priority
-            (e.g. high, medium, low).
+            Stock levels for each severity group.
         population : float or array
             Included for compatibility with the SD framework, but unused.
         presenting_proportion : float in [0, 1]
@@ -57,8 +61,8 @@ def strict_priority_gatekeeping(threshold):
             remaining_capacity = total_capacity
             lambdas = np.zeros(len(stocks))
 
-            for i, d in enumerate(demand):
-                allowed = min(d, remaining_capacity)
+            for i in PRIORITY_ORDER:
+                allowed = min(demand[i], remaining_capacity)
                 lambdas[i] = allowed
                 remaining_capacity = max(remaining_capacity - allowed, 0.0)
 
@@ -71,7 +75,7 @@ def strict_priority_gatekeeping(threshold):
             total_capacity = threshold * demand.sum(axis=0)
             remaining_capacity = total_capacity.copy()
 
-            for i in range(n_groups):
+            for i in PRIORITY_ORDER:
                 allowed = np.minimum(demand[i], remaining_capacity)
                 lambdas[i] = allowed
                 remaining_capacity = np.maximum(remaining_capacity - allowed, 0.0)
@@ -114,8 +118,7 @@ def fixed_capacity_strict_gatekeeping(capacity):
         Parameters
         ----------
         stocks : list/array of scalars or arrays
-            Stock levels for each severity group, ordered by priority
-            (e.g. high, medium, low).
+            Stock levels for each severity group.
         population : float or array
             Included for compatibility with the SD framework, but unused.
         presenting_proportion : float in [0, 1]
@@ -136,8 +139,8 @@ def fixed_capacity_strict_gatekeeping(capacity):
             remaining_capacity = capacity
             lambdas = np.zeros(len(stocks))
 
-            for i, stock in enumerate(stocks):
-                demand = presenting_proportion * stock
+            for i in PRIORITY_ORDER:
+                demand = presenting_proportion * stocks[i]
                 allowed = min(demand, remaining_capacity)
                 lambdas[i] = allowed
                 remaining_capacity = max(remaining_capacity - allowed, 0.0)
@@ -149,7 +152,7 @@ def fixed_capacity_strict_gatekeeping(capacity):
             lambdas = np.zeros((n_groups, n_times))
             remaining_capacity = np.full(n_times, capacity, dtype=float)
 
-            for i in range(n_groups):
+            for i in PRIORITY_ORDER:
                 demand = presenting_proportion * stocks[i]
                 allowed = np.minimum(demand, remaining_capacity)
                 lambdas[i] = allowed
@@ -189,8 +192,7 @@ def fixed_capacity_proportional_gatekeeping(capacity):
         Parameters
         ----------
         stocks : list/array of scalars or arrays
-            Stock levels for each severity group, ordered by priority
-            (e.g. high, medium, low).
+            Stock levels for each severity group.
         population : float or array
             Included for compatibility with the SD framework, but unused.
         presenting_proportion : float in [0, 1]
@@ -252,8 +254,8 @@ def weighted_priority_gatekeeping(threshold, weights):
         Proportion of total presenting demand that can be referred.
 
     weights : tuple/list/array
-        Priority weights in SD stock order. Larger weight means stronger 
-        referral priority.
+        Priority weights in low, medium, high order. Larger weight means 
+        stronger referral priority.
 
     Returns
     -------
@@ -304,8 +306,7 @@ def weighted_priority_gatekeeping(threshold, weights):
         Parameters
         ----------
         stocks : list/array of scalars or arrays
-            Stock levels for each severity group, ordered by priority
-            (e.g. high, medium, low).
+            Stock levels for each severity group.
         population : float or array
             Included for compatibility with the SD framework, but unused.
         presenting_proportion : float in [0, 1]
@@ -383,8 +384,7 @@ def seasonal_capacity_gatekeeping(baseline=8, amplitude=2, period=365, phase_shi
         Parameters
         ----------
         stocks : list/array of scalars or arrays
-            Stock levels for each severity group, ordered by priority
-            (e.g. high, medium, low).
+            Stock levels for each severity group.
         population : float or array
             Included for compatibility with the SD framework.
         presenting_proportion : float in [0, 1]
@@ -414,8 +414,8 @@ def seasonal_capacity_gatekeeping(baseline=8, amplitude=2, period=365, phase_shi
                 return lambdas
 
             remaining_capacity = capacity
-            for i, stock in enumerate(stocks):
-                demand = presenting_proportion * stock
+            for i in PRIORITY_ORDER:
+                demand = presenting_proportion * stocks[i]
                 allowed = min(demand, remaining_capacity)
                 lambdas[i] = allowed
                 remaining_capacity = max(remaining_capacity - allowed, 0.0)
@@ -437,7 +437,7 @@ def seasonal_capacity_gatekeeping(baseline=8, amplitude=2, period=365, phase_shi
                 if remaining_capacity == 0:
                     continue
 
-                for j in range(n_groups):
+                for j in PRIORITY_ORDER:
                     demand = presenting_proportion * stocks[j, i]
                     allowed = min(demand, remaining_capacity)
                     lambdas[j, i] = allowed
@@ -480,8 +480,7 @@ def equal_access_proportion_gatekeeping(access_proportion):
         Parameters
         ----------
         stocks : list/array of scalars or arrays
-            Stock levels for each severity group, ordered by priority
-            (e.g. high, medium, low).
+            Stock levels for each severity group..
         population : float or array
             Included for compatibility with the SD framework, but unused.
         presenting_proportion : float in [0, 1]
@@ -520,7 +519,7 @@ def severity_specific_access_gatekeeping(proportions):
     Parameters
     ----------
     proportions : list of floats
-        Proportions for each stock, e.g. for high, medium, low severity.
+        Proportions for each stock, e.g. for low, medium, high severity.
 
     Returns
     -------
@@ -536,8 +535,7 @@ def severity_specific_access_gatekeeping(proportions):
         Parameters
         ----------
         stocks : list/array of scalars or arrays
-            Stock levels for each severity group, ordered by priority
-            (e.g. high, medium, low).
+            Stock levels for each severity group.
         population : float or array
             Included for compatibility with the SD framework, but unused.
         presenting_proportion : float in [0, 1]
@@ -598,8 +596,7 @@ def partial_priority_gatekeeping(capacity, priority_relaxation):
         Parameters
         ----------
         stocks : list/array of scalars or arrays
-            Stock levels for each severity group, ordered by priority
-            (e.g. high, medium, low).
+            Stock levels for each severity group.
         population : float or array
             Included for compatibility with the SD framework, but unused.
         presenting_proportion : float in [0, 1]
@@ -622,7 +619,7 @@ def partial_priority_gatekeeping(capacity, priority_relaxation):
             strict_lambdas = np.zeros(n_groups)
             remaining_capacity = capacity
 
-            for i in range(n_groups):
+            for i in PRIORITY_ORDER:
                 allowed = min(demand[i], remaining_capacity)
                 strict_lambdas[i] = allowed
                 remaining_capacity = max(remaining_capacity - allowed, 0.0)
@@ -650,7 +647,7 @@ def partial_priority_gatekeeping(capacity, priority_relaxation):
                 strict_lambdas = np.zeros(n_groups)
                 remaining_capacity = capacity
 
-                for i in range(n_groups):
+                for i in PRIORITY_ORDER:
                     allowed = min(d[i], remaining_capacity)
                     strict_lambdas[i] = allowed
                     remaining_capacity = max(remaining_capacity - allowed, 0.0)
@@ -715,8 +712,7 @@ def severity_responsive_gatekeeping(
         Parameters
         ----------
         stocks : list/array of scalars or arrays
-            Stock levels for each severity group, ordered by priority
-            (e.g. high, medium, low).
+            Stock levels for each severity group.
         population : float or array
             Included for compatibility with the SD framework, but unused.
         presenting_proportion : float in [0, 1]
@@ -740,7 +736,7 @@ def severity_responsive_gatekeeping(
             if total_demand == 0:
                 return np.zeros(len(stocks))
 
-            high_severity_proportion = demand[0] / total_demand
+            high_severity_proportion = demand[HIGH] / total_demand
 
             if high_severity_proportion >= severity_threshold:
                 capacity = high_severity_capacity
@@ -750,7 +746,7 @@ def severity_responsive_gatekeeping(
             lambdas = np.zeros(len(stocks))
             remaining_capacity = capacity
 
-            for i in range(len(stocks)):
+            for i in PRIORITY_ORDER:
                 allowed = min(demand[i], remaining_capacity)
                 lambdas[i] = allowed
                 remaining_capacity = max(remaining_capacity - allowed, 0.0)
@@ -769,7 +765,7 @@ def severity_responsive_gatekeeping(
                 if total_demand == 0:
                     continue
 
-                high_severity_proportion = d[0] / total_demand
+                high_severity_proportion = d[HIGH] / total_demand
 
                 if high_severity_proportion >= severity_threshold:
                     capacity = high_severity_capacity
@@ -777,7 +773,7 @@ def severity_responsive_gatekeeping(
                     capacity = low_severity_capacity
 
                 remaining_capacity = capacity
-                for i in range(n_groups):
+                for i in PRIORITY_ORDER:
                     allowed = min(d[i], remaining_capacity)
                     lambdas[i, k] = allowed
                     remaining_capacity = max(remaining_capacity - allowed, 0.0)
@@ -966,9 +962,9 @@ class SD:
         tuple
             dP_onedt, dP_twodt, dP_threedt : floats
         """
-        P_one, P_two, P_three = y
-        N_current = P_one + P_two + P_three
-        all_stocks = [P_one, P_two, P_three]
+        P_low, P_medium, P_high = y
+        N_current = P_low + P_medium + P_high
+        all_stocks = [P_low, P_medium, P_high]
 
         if N_current == 0:
             return 0, 0, 0
@@ -982,19 +978,30 @@ class SD:
             t=time_domain,
         )
 
-        dP_onedt = (self.deterioration_rate(t=time_domain) * P_two) - lambdas[0]
-        dP_twodt = (
-            (self.deterioration_rate(t=time_domain) * P_three)
-            - (self.deterioration_rate(t=time_domain) * P_two)
-            - lambdas[1]
-        )
-        dP_threedt = (
-            -lambdas[2]
-            - (self.deterioration_rate(t=time_domain) * P_three)
+        deterioration = self.deterioration_rate(t=time_domain)
+        if np.isscalar(deterioration): # Backwards-compatible scalar deterioration.
+            det_lm = deterioration
+            det_mh = deterioration
+        else:
+            det_lm, det_mh = deterioration
+
+        dP_lowdt = (
+            -lambdas[0]
+            - (det_lm * P_low)
             - (self.recovery_rate(t=time_domain, stock_size=N_current))
             + (self.incidence_rate(t=time_domain, population_size=current_population))
         )
-        return dP_onedt, dP_twodt, dP_threedt
+        dP_mediumdt = (
+            (det_lm * P_low)
+            - (det_mh * P_medium)
+            - lambdas[1]
+        )
+        dP_highdt = (
+            (det_mh * P_medium)
+            - lambdas[2]
+        )
+        
+        return dP_lowdt, dP_mediumdt, dP_highdt
 
     def solve(
         self,
@@ -1012,15 +1019,15 @@ class SD:
             t,
         )
 
-        P1, P2, P3 = results.T
-        self.P[0] = np.append(self.P[0], P1[1:])
-        self.P[1] = np.append(self.P[1], P2[1:])
-        self.P[2] = np.append(self.P[2], P3[1:])
+        P_low, P_medium, P_high = results.T
+        self.P[0] = np.append(self.P[0], P_low[1:])
+        self.P[1] = np.append(self.P[1], P_medium[1:])
+        self.P[2] = np.append(self.P[2], P_high[1:])
 
         # Extract the lambdas from the results
         self.lambdas = self.gatekeeping_function(
-            stocks=[P1, P2, P3],
-            population=P1 + P2 + P3,
+            stocks=[P_low, P_medium, P_high],
+            population=P_low + P_medium + P_high,
             presenting_proportion=self.presenting_proportion,
             t=t,
         )
@@ -1352,8 +1359,8 @@ def plot_stocks_over_time(
         raise ValueError("Each stock array must have the same length as t.")
 
     fig, ax = plt.subplots(figsize=(6, 4))
-    colors = ["#FFC107", "#1E88E5", "#D81B60"]
-    labels = ["$P_1$ (High)", "$P_2$ (Medium)", "$P_3$ (Low)"]
+    colors = ["#D81B60", "#1E88E5", "#FFC107"]
+    labels = ["$P_1$ (Low)", "$P_2$ (Medium)", "$P_3$ (High)"]
     for stock, color, label in zip(stocks, colors, labels):
         ax.plot(t, stock, label=label, color=color)
 
@@ -1433,9 +1440,9 @@ def plot_stacked_stocks_over_time(
 
     P0, P1, P2 = stocks[0], stocks[1], stocks[2]
 
-    ax.fill_between(t, P0, 0, color=colors[0], label="$P_1$ (High)")
-    ax.fill_between(t, P1 + P0, P0, color=colors[1], label="$P_2$ (Medium)")
-    ax.fill_between(t, P2 + P1 + P0, P1 + P0, color=colors[2], label="$P_3$ (Low)")
+    ax.fill_between(t, P2, 0, color=colors[0], label="$P_3$ (High)")
+    ax.fill_between(t, P1 + P2, P2, color=colors[1], label="$P_2$ (Medium)")
+    ax.fill_between(t, P2 + P1 + P0, P2 + P1, color=colors[2], label="$P_1$ (Low)")
 
     if overlay_values is not None:
         ax.plot(
@@ -1504,8 +1511,8 @@ def plot_referral_numbers_over_time(
         raise ValueError("Each array must have the same length as t.")
 
     fig, ax = plt.subplots(figsize=(6, 4))
-    colors = ["#FFC107", "#1E88E5", "#D81B60"]
-    labels = ["$Λ_1(t)$ (High)", "$Λ_2(t)$ (Medium)", "$Λ_3(t)$ (Low)"]
+    colors = ["#D81B60", "#1E88E5", "#FFC107"]
+    labels = ["$Λ_1(t)$ (Low)", "$Λ_2(t)$ (Medium)", "$Λ_3(t)$ (High)"]
 
     for i in range(len(referral_numbers)):
         ax.plot(t, referral_numbers[i], label=labels[i], color=colors[i])
