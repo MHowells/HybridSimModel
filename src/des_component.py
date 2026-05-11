@@ -328,6 +328,14 @@ class PDFARouting(ciw.routing.NodeRouting):
                     values=["Low", "Medium", "High"], probs=[0.5, 0.25, 0.25]
                 ).sample()
 
+        if not hasattr(ind, "referral_source"):
+            if ind.node == 1:
+                ind.referral_source = "GP"
+            elif ind.node == 2:
+                ind.referral_source = "Other"
+            else:
+                ind.referral_source = None
+
         if not hasattr(ind, "route_position"):
             ind.route_position = 1  # Or initial state if different
 
