@@ -1,7 +1,206 @@
 import ciw
 import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
+from math import isinf, nan
+from collections import namedtuple
+
+
+DataRecord = namedtuple(
+    "Record",
+    [
+        "id_number",
+        "customer_class",
+        "original_customer_class",
+        "node",
+        "arrival_date",
+        "waiting_time",
+        "service_start_date",
+        "service_time",
+        "service_end_date",
+        "time_blocked",
+        "exit_date",
+        "destination",
+        "queue_size_at_arrival",
+        "queue_size_at_departure",
+        "server_id",
+        "record_type",
+        "level",
+        "referral_source",
+    ],
+)
+
+
+def custom_write_individual_record(self, individual):
+    """
+    Write a data record for an individual when leaving a node.
+    """
+    if isinf(self.c) or self.slotted:
+        server_id = False
+    else:
+        server_id = individual.server.id_number
+    record = DataRecord(
+        id_number=individual.id_number,
+        customer_class=individual.previous_class,
+        original_customer_class=individual.original_class,
+        node=self.id_number,
+        arrival_date=individual.arrival_date,
+        waiting_time=individual.service_start_date - individual.arrival_date,
+        service_start_date=individual.service_start_date,
+        service_time=individual.service_end_date - individual.service_start_date,
+        service_end_date=individual.service_end_date,
+        time_blocked=individual.exit_date - individual.service_end_date,
+        exit_date=individual.exit_date,
+        destination=individual.destination,
+        queue_size_at_arrival=individual.queue_size_at_arrival,
+        queue_size_at_departure=individual.queue_size_at_departure,
+        server_id=server_id,
+        record_type="service",
+        level=individual.level,
+        referral_source=individual.referral_source,
+    )
+    individual.data_records.append(record)
+
+
+def custom_write_incomplete_record(self, individual):
+    """
+    Write an incomplete data record for an individual
+    at the end of the simulation run.
+    """
+    if not individual.service_time:  # Still in queue
+        service_start_date = None
+        waiting_time = None
+        service_time = None
+        service_end_date = None
+    else:
+        service_start_date = individual.service_start_date
+        waiting_time = individual.service_start_date - individual.arrival_date
+        if individual.service_end_date > self.now:  # Still in service
+            service_time = None
+            service_end_date = None
+        else:  # Still blocked
+            service_time = individual.service_time
+            service_end_date = individual.service_end_date
+    record = DataRecord(
+        id_number=individual.id_number,
+        customer_class=individual.previous_class,
+        original_customer_class=individual.original_class,
+        node=self.id_number,
+        arrival_date=individual.arrival_date,
+        waiting_time=waiting_time,
+        service_start_date=service_start_date,
+        service_time=service_time,
+        service_end_date=service_end_date,
+        time_blocked=None,
+        exit_date=None,
+        destination=None,
+        queue_size_at_arrival=individual.queue_size_at_arrival,
+        queue_size_at_departure=None,
+        server_id=False,
+        record_type="incomplete",
+        level=individual.level,
+        referral_source=individual.referral_source,
+    )
+    return record
+
+
+def custom_write_interruption_record(self, individual, destination=nan):
+    """
+    Write a data record for an individual when being interrupted.
+    """
+    if self.slotted:
+        server_id = False
+    else:
+        server_id = individual.server.id_number
+    record = DataRecord(
+        id_number=individual.id_number,
+        customer_class=individual.previous_class,
+        original_customer_class=individual.original_class,
+        node=self.id_number,
+        arrival_date=individual.arrival_date,
+        waiting_time=individual.service_start_date - individual.arrival_date,
+        service_start_date=individual.service_start_date,
+        service_time=individual.original_service_time,
+        service_end_date=nan,
+        time_blocked=nan,
+        exit_date=self.now,
+        destination=destination,
+        queue_size_at_arrival=individual.queue_size_at_arrival,
+        queue_size_at_departure=individual.queue_size_at_departure,
+        server_id=server_id,
+        record_type="interrupted service",
+        level=individual.level,
+        referral_source=individual.referral_source,
+    )
+    individual.data_records.append(record)
+
+
+def custom_write_reneging_record(self, individual):
+    """
+    Write a data record for an individual when reneging.
+    """
+    record = DataRecord(
+        id_number=individual.id_number,
+        customer_class=individual.previous_class,
+        original_customer_class=individual.original_class,
+        node=self.id_number,
+        arrival_date=individual.arrival_date,
+        waiting_time=individual.exit_date - individual.arrival_date,
+        service_start_date=nan,
+        service_time=nan,
+        service_end_date=nan,
+        time_blocked=nan,
+        exit_date=individual.exit_date,
+        destination=individual.destination,
+        queue_size_at_arrival=individual.queue_size_at_arrival,
+        queue_size_at_departure=individual.queue_size_at_departure,
+        server_id=nan,
+        record_type="renege",
+        level=individual.level,
+        referral_source=individual.referral_source,
+    )
+    individual.data_records.append(record)
+
+
+def custom_write_baulking_or_rejection_record(self, individual, record_type):
+    """
+    Write a data record for an individual baulks.
+    """
+    record = DataRecord(
+        id_number=individual.id_number,
+        customer_class=individual.previous_class,
+        original_customer_class=individual.original_class,
+        node=self.id_number,
+        arrival_date=self.now,
+        waiting_time=nan,
+        service_start_date=nan,
+        service_time=nan,
+        service_end_date=nan,
+        time_blocked=nan,
+        exit_date=self.now,
+        destination=nan,
+        queue_size_at_arrival=self.number_of_individuals,
+        queue_size_at_departure=nan,
+        server_id=nan,
+        record_type=record_type,
+        level=individual.level,
+        referral_source=individual.referral_source,
+    )
+    individual.data_records.append(record)
+
+
+def apply_custom_record_changes():
+    """
+    Apply custom Ciw record functions.
+
+    This extends the default Ciw records so that the original customer 
+    class and severity level are included.
+    """
+    ciw.node.Node.write_individual_record = custom_write_individual_record
+    ciw.node.Node.write_incomplete_record = custom_write_incomplete_record
+    ciw.node.Node.write_interruption_record = custom_write_interruption_record
+    ciw.node.Node.write_reneging_record = custom_write_reneging_record
+    ciw.node.Node.write_baulking_or_rejection_record = (
+        custom_write_baulking_or_rejection_record
+    )
 
 
 def get_activity_dictionaries(alphabet, start_value=2):
