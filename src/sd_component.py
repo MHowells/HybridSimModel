@@ -1200,7 +1200,7 @@ def get_time_dependent_recovery_rate(recovery_proportions, durations=np.NaN):
     return recovery_function
 
 
-def get_discretised_deterioration_rates(
+def get_deterioration_rates(
     category_widths,
     shift_proportion,
     shift_interval_days,
