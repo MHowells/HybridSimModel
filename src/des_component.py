@@ -1,5 +1,7 @@
 import ciw
 import numpy as np
+from scipy.sparse import csr_matrix
+from scipy.sparse.csgraph import connected_components
 from math import isinf, nan
 from collections import namedtuple
 
@@ -249,6 +251,85 @@ def get_list_of_nodes(alphabets, subspecialties):
     return nodes
 
 
+def remove_activity_from_pdfa(pdfa, activity_index, tol=1e-12):
+    """
+    Returns a copy of a PDFA matrix with one activity removed.
+
+    This mimics the pre-op filtering logic in PDFARouting:
+    - remove the selected activity;
+    - renormalise remaining outgoing probabilities;
+    - if no transitions remain, leave the row empty so tau probability is 1.
+    """
+    adjusted_pdfa = np.array(pdfa, dtype=float, copy=True)
+    n_states = adjusted_pdfa.shape[1]
+    adjusted_pdfa[activity_index, :, :] = 0.0
+
+    for state in range(n_states):
+        row_total = adjusted_pdfa[:, state, :].sum()
+        if row_total > tol:
+            adjusted_pdfa[:, state, :] = adjusted_pdfa[:, state, :] / row_total
+
+    return adjusted_pdfa
+
+
+def find_closed_pdfa_states(p_matrix, tol=1e-12):
+    """
+    Finds closed recurrent PDFA state groups that have no probability of
+    leaving the pathway.
+    """
+    n_states = p_matrix.shape[1]
+    adjacency = p_matrix.sum(axis=0) > tol
+    graph = csr_matrix(adjacency)
+    n_components, labels = connected_components(
+        graph,
+        directed=True,
+        connection="strong"
+    )
+    closed_recurrents = []
+
+    for component_id in range(n_components):
+        group = np.where(labels == component_id)[0]
+
+        if len(group) == 1:
+            state = group[0]
+            if not adjacency[state, state]:
+                continue
+
+        outside_group = np.setdiff1d(np.arange(n_states), group)
+        if len(outside_group) > 0:
+            has_way_out = adjacency[np.ix_(group, outside_group)].any()
+        else:
+            has_way_out = False
+
+        if has_way_out:
+            continue
+
+        outgoing_probs = p_matrix[:, group, :].sum(axis=(0, 2))
+        tau_probs = 1.0 - outgoing_probs
+        has_tau = np.any(tau_probs > tol)
+
+        if has_tau:
+            continue
+
+        closed_recurrents.append(group.tolist())
+
+    return closed_recurrents
+
+
+def add_tau_escape_to_states(pdfa, states, tau_prob=0.05):
+    """
+    Adds an exit probability to selected PDFA states.
+    """
+    new_pdfa = np.array(pdfa, dtype=float, copy=True)
+
+    for state in states:
+        outgoing_prob = new_pdfa[:, state, :].sum()
+        if outgoing_prob > 0:
+            new_pdfa[:, state, :] *= (1.0 - tau_prob) / outgoing_prob
+
+    return new_pdfa
+
+
 class PDFARouting(ciw.routing.NodeRouting):
     """
     A class to implement PDFA-based routing in a Ciw discrete-event simulation.
@@ -385,6 +466,20 @@ class PDFARouting(ciw.routing.NodeRouting):
                 p_values, possible_next_state, possible_next_activity = zip(*filtered)
                 total = sum(p_values)
                 p_values = [p / total for p in p_values]
+                adjusted_pdfa = remove_activity_from_pdfa(p_matrix, alphabet.index(self.pre_op_letter))
+                closed_states_check = find_closed_pdfa_states(adjusted_pdfa)
+                if len(closed_states_check) > 0:
+                    for group in closed_states_check:
+                        adjusted_pdfa = add_tau_escape_to_states(adjusted_pdfa, group)
+                    p_values = []
+                    possible_next_state = []
+                    possible_next_activity = []
+                    for letter in range(len(alphabet)):
+                        trans_probs = adjusted_pdfa[letter, leaving_row, :]
+                        if trans_probs.sum() > 0:
+                            p_values.append(trans_probs.sum())
+                            possible_next_state.append(np.where(trans_probs > 0)[0][0])
+                            possible_next_activity.append(letter)
                 possible_next_state = list(possible_next_state)
                 possible_next_activity = list(possible_next_activity)
             else:
