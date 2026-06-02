@@ -1262,20 +1262,20 @@ def test_severity_specific_access_gatekeeping_raises_for_invalid_dimension():
         )
 
 
-def test_partial_priority_gatekeeping_returns_callable():
-    gatekeeping = sd.partial_priority_gatekeeping(
+def test_split_capacity_priority_gatekeeping_returns_callable():
+    gatekeeping = sd.split_capacity_priority_gatekeeping(
         capacity=15.0, priority_relaxation=0.5
     )
     assert callable(gatekeeping)
 
 
-def test_partial_priority_gatekeeping_scalar_full_strict_priority():
+def test_split_capacity_priority_gatekeeping_scalar_full_strict_priority():
     stocks = np.array([50.0, 30.0, 20.0])
     presenting_proportion = 0.4
     capacity = 15.0
     priority_relaxation = 0.0
 
-    gatekeeping = sd.partial_priority_gatekeeping(capacity, priority_relaxation)
+    gatekeeping = sd.split_capacity_priority_gatekeeping(capacity, priority_relaxation)
     obtained = gatekeeping(
         stocks=stocks,
         population=stocks.sum(),
@@ -1287,13 +1287,13 @@ def test_partial_priority_gatekeeping_scalar_full_strict_priority():
     np.testing.assert_allclose(obtained, expected)
 
 
-def test_partial_priority_gatekeeping_scalar_full_proportional():
+def test_split_capacity_priority_gatekeeping_scalar_full_proportional():
     stocks = np.array([50.0, 30.0, 20.0])
     presenting_proportion = 0.4
     capacity = 15.0
     priority_relaxation = 1.0
 
-    gatekeeping = sd.partial_priority_gatekeeping(capacity, priority_relaxation)
+    gatekeeping = sd.split_capacity_priority_gatekeeping(capacity, priority_relaxation)
     obtained = gatekeeping(
         stocks=stocks,
         population=stocks.sum(),
@@ -1305,13 +1305,13 @@ def test_partial_priority_gatekeeping_scalar_full_proportional():
     np.testing.assert_allclose(obtained, expected)
 
 
-def test_partial_priority_gatekeeping_scalar_halfway_blend():
+def test_split_capacity_priority_gatekeeping_scalar_halfway_blend():
     stocks = np.array([50.0, 30.0, 20.0])
     presenting_proportion = 0.4
     capacity = 15.0
     priority_relaxation = 0.5
 
-    gatekeeping = sd.partial_priority_gatekeeping(capacity, priority_relaxation)
+    gatekeeping = sd.split_capacity_priority_gatekeeping(capacity, priority_relaxation)
     obtained = gatekeeping(
         stocks=stocks,
         population=stocks.sum(),
@@ -1319,17 +1319,17 @@ def test_partial_priority_gatekeeping_scalar_halfway_blend():
         t=0.0,
     )
 
-    expected = np.array([3.75, 5.75, 5.5])
+    expected = np.array([4.61538462, 2.76923077, 7.61538462])
     np.testing.assert_allclose(obtained, expected)
 
 
-def test_partial_priority_gatekeeping_scalar_no_capacity():
+def test_split_capacity_priority_gatekeeping_scalar_no_capacity():
     stocks = np.array([50.0, 30.0, 20.0])
     presenting_proportion = 0.4
     capacity = 0.0
     priority_relaxation = 0.5
 
-    gatekeeping = sd.partial_priority_gatekeeping(capacity, priority_relaxation)
+    gatekeeping = sd.split_capacity_priority_gatekeeping(capacity, priority_relaxation)
     obtained = gatekeeping(
         stocks=stocks,
         population=stocks.sum(),
@@ -1341,13 +1341,13 @@ def test_partial_priority_gatekeeping_scalar_no_capacity():
     np.testing.assert_allclose(obtained, expected)
 
 
-def test_partial_priority_gatekeeping_scalar_empty_stocks():
+def test_split_capacity_priority_gatekeeping_scalar_empty_stocks():
     stocks = np.array([0.0, 0.0, 0.0])
     presenting_proportion = 0.4
     capacity = 15.0
     priority_relaxation = 0.5
 
-    gatekeeping = sd.partial_priority_gatekeeping(capacity, priority_relaxation)
+    gatekeeping = sd.split_capacity_priority_gatekeeping(capacity, priority_relaxation)
     obtained = gatekeeping(
         stocks=stocks,
         population=stocks.sum(),
@@ -1359,13 +1359,13 @@ def test_partial_priority_gatekeeping_scalar_empty_stocks():
     np.testing.assert_allclose(obtained, expected)
 
 
-def test_partial_priority_gatekeeping_scalar_full_capacity():
+def test_split_capacity_priority_gatekeeping_scalar_full_capacity():
     stocks = np.array([50.0, 30.0, 20.0])
     presenting_proportion = 0.4
     capacity = 40.0
     priority_relaxation = 0.5
 
-    gatekeeping = sd.partial_priority_gatekeeping(capacity, priority_relaxation)
+    gatekeeping = sd.split_capacity_priority_gatekeeping(capacity, priority_relaxation)
     obtained = gatekeeping(
         stocks=stocks,
         population=stocks.sum(),
@@ -1377,7 +1377,7 @@ def test_partial_priority_gatekeeping_scalar_full_capacity():
     np.testing.assert_allclose(obtained, expected)
 
 
-def test_partial_priority_gatekeeping_time_series_case():
+def test_split_capacity_priority_gatekeeping_time_series_case():
     stocks = np.array(
         [
             [50.0, 55.0, 60.0],
@@ -1389,7 +1389,7 @@ def test_partial_priority_gatekeeping_time_series_case():
     capacity = 15.0
     priority_relaxation = 0.5
 
-    gatekeeping = sd.partial_priority_gatekeeping(capacity, priority_relaxation)
+    gatekeeping = sd.split_capacity_priority_gatekeeping(capacity, priority_relaxation)
 
     obtained = gatekeeping(
         stocks=stocks,
@@ -1400,17 +1400,17 @@ def test_partial_priority_gatekeeping_time_series_case():
 
     expected = np.array(
         [
-            [3.75, 4.125, 4.5],
-            [5.75, 5.375, 5.0],
-            [5.5, 5.5, 5.5],
+            [4.61538462, 5.07692308, 5.53846154],
+            [2.76923077, 2.30769231, 1.84615385],
+            [7.61538462, 7.61538462, 7.61538462],
         ]
     )
 
     np.testing.assert_allclose(obtained, expected)
 
 
-def test_partial_priority_gatekeeping_raises_for_invalid_dimension():
-    gatekeeping = sd.partial_priority_gatekeeping(
+def test_split_capacity_priority_gatekeeping_raises_for_invalid_dimension():
+    gatekeeping = sd.split_capacity_priority_gatekeeping(
         capacity=15.0, priority_relaxation=0.5
     )
     stocks = np.zeros((3, 2, 2))
@@ -1426,12 +1426,12 @@ def test_partial_priority_gatekeeping_raises_for_invalid_dimension():
         )
 
 
-def test_partial_priority_gatekeeping_zero_relaxation_matches_fixed_capacity_strict():
+def test_split_capacity_priority_gatekeeping_zero_relaxation_matches_fixed_capacity_strict():
     stocks = np.array([50.0, 30.0, 20.0])
     presenting_proportion = 0.4
     capacity = 15.0
 
-    blended = sd.partial_priority_gatekeeping(
+    blended = sd.split_capacity_priority_gatekeeping(
         capacity=capacity, priority_relaxation=0.0
     )
     strict = sd.fixed_capacity_strict_gatekeeping(capacity=capacity)
@@ -1452,12 +1452,12 @@ def test_partial_priority_gatekeeping_zero_relaxation_matches_fixed_capacity_str
     np.testing.assert_allclose(obtained_blended, obtained_strict)
 
 
-def test_partial_priority_gatekeeping_full_relaxation_matches_fixed_capacity_proportional():
+def test_split_capacity_priority_gatekeeping_full_relaxation_matches_fixed_capacity_proportional():
     stocks = np.array([50.0, 30.0, 20.0])
     presenting_proportion = 0.4
     capacity = 15.0
 
-    blended = sd.partial_priority_gatekeeping(
+    blended = sd.split_capacity_priority_gatekeeping(
         capacity=capacity, priority_relaxation=1.0
     )
     proportional = sd.fixed_capacity_proportional_gatekeeping(capacity=capacity)
@@ -1478,7 +1478,7 @@ def test_partial_priority_gatekeeping_full_relaxation_matches_fixed_capacity_pro
     np.testing.assert_allclose(obtained_blended, obtained_proportional)
 
 
-def test_partial_priority_gatekeeping_time_series_zero_demand_branch():
+def test_split_capacity_priority_gatekeeping_time_series_zero_demand_branch():
     stocks = np.array(
         [
             [0.0, 50.0, 55.0],
@@ -1490,7 +1490,7 @@ def test_partial_priority_gatekeeping_time_series_zero_demand_branch():
     capacity = 15.0
     priority_relaxation = 0.5
 
-    gatekeeping = sd.partial_priority_gatekeeping(capacity, priority_relaxation)
+    gatekeeping = sd.split_capacity_priority_gatekeeping(capacity, priority_relaxation)
 
     obtained = gatekeeping(
         stocks=stocks,
@@ -1501,9 +1501,9 @@ def test_partial_priority_gatekeeping_time_series_zero_demand_branch():
 
     expected = np.array(
         [
-            [0.0, 3.75, 4.125],
-            [0.0, 5.75, 5.375],
-            [0.0, 5.5, 5.5],
+            [0.0, 4.61538462, 5.07692308],
+            [0.0, 2.76923077, 2.30769231],
+            [0.0, 7.61538462, 7.61538462],
         ]
     )
 

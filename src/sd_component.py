@@ -566,14 +566,14 @@ def severity_specific_access_gatekeeping(proportions):
     return gatekeeping_function
 
 
-def partial_priority_gatekeeping(capacity, priority_relaxation):
+def split_capacity_priority_gatekeeping(capacity, priority_relaxation):
     """
-    Fixed-capacity gatekeeping that blends strict-severity priority and 
-    proportional allocation.
+    Fixed-capacity gatekeeping that splits capacity between strict-severity
+    priority and proportional allocation.
 
-    A priority_relaxation value of 0 gives fully strict-priority 
-    allocation, while a value of 1 gives fully proportional allocation. 
-    Intermediate values give softer priority rules.
+    A priority_relaxation value of 0 gives fully strict-priority allocation,
+    while a value of 1 gives fully proportional allocation. Intermediate values
+    split the available capacity between the two rules.
 
     Parameters
     ----------
@@ -581,7 +581,8 @@ def partial_priority_gatekeeping(capacity, priority_relaxation):
         Maximum number of presenting patients who can be referred
         per time step.
     priority_relaxation : float in [0, 1]
-        Degree of relaxation in priority-based allocation.
+        Proportion of capacity allocated proportionally rather than by strict
+        priority.
 
     Returns
     -------
@@ -591,12 +592,14 @@ def partial_priority_gatekeeping(capacity, priority_relaxation):
 
     def gatekeeping_function(stocks, population, presenting_proportion, t):
         """
-        Calculate referral flows under a blended-allocation gatekeeping policy.
+        Calculate referral flows under a split capacity priority gatekeeping 
+        policy.
 
         Parameters
         ----------
         stocks : list/array of scalars or arrays
-            Stock levels for each severity group.
+            Stock levels for each severity group, ordered by priority
+            (e.g. low, medium, high).
         population : float or array
             Included for compatibility with the SD framework, but unused.
         presenting_proportion : float in [0, 1]
@@ -613,27 +616,39 @@ def partial_priority_gatekeeping(capacity, priority_relaxation):
         """
         stocks = np.array(stocks, dtype=float)
 
+        strict_capacity = (1 - priority_relaxation) * capacity
+        proportional_capacity = priority_relaxation * capacity
+
         if stocks.ndim == 1:
             demand = presenting_proportion * stocks
             n_groups = len(stocks)
+
             strict_lambdas = np.zeros(n_groups)
-            remaining_capacity = capacity
+            remaining_capacity = strict_capacity
 
             for i in PRIORITY_ORDER:
                 allowed = min(demand[i], remaining_capacity)
                 strict_lambdas[i] = allowed
                 remaining_capacity = max(remaining_capacity - allowed, 0.0)
 
-            total_demand = demand.sum()
-            if total_demand == 0:
+            remaining_demand = demand - strict_lambdas
+            remaining_demand = np.maximum(remaining_demand, 0.0)
+
+            total_remaining_demand = remaining_demand.sum()
+            if total_remaining_demand == 0:
                 proportional_lambdas = np.zeros(n_groups)
             else:
-                proportional_lambdas = capacity * demand / total_demand
-                proportional_lambdas = np.minimum(proportional_lambdas, demand)
+                proportional_lambdas = (
+                    proportional_capacity
+                    * remaining_demand
+                    / total_remaining_demand
+                )
+                proportional_lambdas = np.minimum(
+                    proportional_lambdas,
+                    remaining_demand,
+                )
 
-            lambdas = (
-                1 - priority_relaxation
-            ) * strict_lambdas + priority_relaxation * proportional_lambdas
+            lambdas = strict_lambdas + proportional_lambdas
 
             return lambdas
 
@@ -644,24 +659,33 @@ def partial_priority_gatekeeping(capacity, priority_relaxation):
 
             for k in range(n_times):
                 d = demand[:, k]
+
                 strict_lambdas = np.zeros(n_groups)
-                remaining_capacity = capacity
+                remaining_capacity = strict_capacity
 
                 for i in PRIORITY_ORDER:
                     allowed = min(d[i], remaining_capacity)
                     strict_lambdas[i] = allowed
                     remaining_capacity = max(remaining_capacity - allowed, 0.0)
 
-                total_demand = d.sum()
-                if total_demand == 0:
+                remaining_demand = d - strict_lambdas
+                remaining_demand = np.maximum(remaining_demand, 0.0)
+
+                total_remaining_demand = remaining_demand.sum()
+                if total_remaining_demand == 0:
                     proportional_lambdas = np.zeros(n_groups)
                 else:
-                    proportional_lambdas = capacity * d / total_demand
-                    proportional_lambdas = np.minimum(proportional_lambdas, d)
+                    proportional_lambdas = (
+                        proportional_capacity
+                        * remaining_demand
+                        / total_remaining_demand
+                    )
+                    proportional_lambdas = np.minimum(
+                        proportional_lambdas,
+                        remaining_demand,
+                    )
 
-                lambdas[:, k] = (
-                    1 - priority_relaxation
-                ) * strict_lambdas + priority_relaxation * proportional_lambdas
+                lambdas[:, k] = strict_lambdas + proportional_lambdas
 
             return lambdas
 
