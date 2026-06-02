@@ -6,10 +6,10 @@ from collections import Counter
 import des_component as des
 
 
-def test_make_activity_dictionaries():
+def test_get_activity_dictionaries():
     alphabet = ['A', 'B', 'C']
     start_value = 2
-    activity_dict, inverted_dict = des.make_activity_dictionaries(alphabet, start_value)
+    activity_dict, inverted_dict = des.get_activity_dictionaries(alphabet, start_value)
 
     expected_activity_dict = {'A': 2, 'B': 3, 'C': 4}
     expected_inverted_dict = {2: 'A', 3: 'B', 4: 'C', 1: ''}
@@ -39,28 +39,73 @@ N = ciw.create_network(
 
 
 class TestPDFARouting(unittest.TestCase):
+    def make_test_individual(self):
+        ind = ciw.Individual(1)
+        ind.original_class = "Low"
+        ind.customer_class = "TestSubspec"
+        ind.level = "Low"
+        ind.node = 1
+        ind.route_position = 1
+        ind.pre_op = False
+        return ind
+    
     def test_transition(self):
         pdfa_matrix = np.zeros((2, 3, 3))
         pdfa_matrix[0, 1, 2] = 1.0
         pdfa_matrix[1, 2, 1] = 1.0
-        alphabet = ['A', 'B']
-        activity_dictionary = {'A': 2, 'B': 3}
-        R = des.PDFARouting(pdfa_matrix, alphabet, activity_dictionary)
+        alphabet = ["A", "B"]
+        p_matrices = [pdfa_matrix, pdfa_matrix, pdfa_matrix]
+        alphabets = [alphabet, alphabet, alphabet]
+        activity_dictionary = {
+            "A": 2,
+            "B": 3,
+            "C": 4,
+            "D": 5,
+        }
+        subspec_dictionary = {"TestSubspec": 0}
+
+        R = des.PDFARouting(
+            p_matrices,
+            alphabets,
+            activity_dictionary,
+            subspec_dictionary,
+            pre_op_letter="C",
+            elective_surgery_letter="D",
+        )
+
         ciw.seed(0)
         Q = ciw.Simulation(N)
         R.initialise(Q, 1)
-        ind = ciw.Individual(1)
-        samples = Counter([r.id_number for r in [R.next_node(ind) for _ in range(100)]])
+        ind = self.make_test_individual()
+        samples = Counter(
+            [r.id_number for r in [R.next_node(ind) for _ in range(100)]]
+        )
         self.assertEqual([samples[i] for i in range(1, 4)], [0, 50, 50])
 
     def test_endpoint_transition(self):
         pdfa_matrix = np.zeros((1, 3, 3))
-        alphabet = ['A']
-        activity_dictionary = {'A': 2}
-        R = des.PDFARouting(pdfa_matrix, alphabet, activity_dictionary)
+        alphabet = ["A"]
+        p_matrices = [pdfa_matrix, pdfa_matrix, pdfa_matrix]
+        alphabets = [alphabet, alphabet, alphabet]
+        activity_dictionary = {
+            "A": 2,
+            "C": 3,
+            "D": 4,
+        }
+        subspec_dictionary = {"TestSubspec": 0}
+
+        R = des.PDFARouting(
+            p_matrices,
+            alphabets,
+            activity_dictionary,
+            subspec_dictionary,
+            pre_op_letter="C",
+            elective_surgery_letter="D",
+        )
+
         ciw.seed(0)
         Q = ciw.Simulation(N)
         R.initialise(Q, 1)
-        ind = ciw.Individual(1)
+        ind = self.make_test_individual()
         samples = [r.id_number for r in [R.next_node(ind) for _ in range(100)]]
         self.assertTrue(all(r == -1 for r in samples))
