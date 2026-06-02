@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-import sd_component as sd
+import hybridsim.sd_component as sd
 
 
 def test_get_time_dependent_population_size_returns_expected_size_within_each_period():

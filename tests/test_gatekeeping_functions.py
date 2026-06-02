@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-import gatekeeping_functions as gf
+import hybridsim.gatekeeping_functions as gf
 
 
 def test_strict_priority_gatekeeping_returns_callable():

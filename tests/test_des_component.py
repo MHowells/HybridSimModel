@@ -1,9 +1,8 @@
 import ciw
 import numpy as np
-import pandas as pd
 import unittest
 from collections import Counter
-import des_component as des
+import hybridsim.des_component as des
 
 
 def test_get_activity_dictionaries():
