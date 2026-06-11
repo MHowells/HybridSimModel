@@ -14,7 +14,7 @@ THIS_DIR = Path(__file__).resolve().parent
 
 EXP_DIR = THIS_DIR.parent
 ROOT_DIR = THIS_DIR.parents[2]
-SRC_DIR = ROOT_DIR / "src/hybridsim"
+SRC_DIR = ROOT_DIR / "src"
 
 OUTPUT_DIR = EXP_DIR / "outputs"
 

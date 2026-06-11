@@ -16,8 +16,8 @@ from experiment_paths import SRC_DIR
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-import des_component as des
-import results as res
+from hybridsim import des_component as des
+from hybridsim import results as res
 
 des.apply_custom_record_changes()
 
