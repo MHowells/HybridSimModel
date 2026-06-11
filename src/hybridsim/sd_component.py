@@ -497,18 +497,18 @@ def get_deterioration_rates(
     shift_interval_days,
 ):
     """
-    Discretised deterioration on an underlying severity scale, 
-    discretised into Low, Medium, and High regions.
+    Return deterioration rates for discretised severity categories.
 
-    Every shift_interval_days, patients are assumed to shift by
-    shift_proportion along the underlying scale. Only those near the
-    boundary of a category move into the next category.
+    The underlying severity scale is divided into low-, medium-, and
+    high-severity regions. During each shift interval, patients move by
+    ``shift_proportion`` along that scale. Patients crossing a category
+    boundary move into the next stock.
 
     Parameters
     ----------
-    category_widths : tuple of floats 
-        Widths of the Low, Medium, and High regions on the underlying 
-        severity scale. Must sum to 1.
+    category_widths : sequence of three floats 
+        Widths of the low-, medium-, and high-severity regions. The
+        widths must be positive and sum to one.
     shift_proportion : float
         Proportion of the severity scale moved over each interval.
     shift_interval_days : float
@@ -519,14 +519,26 @@ def get_deterioration_rates(
     function
         Function returning the Low-to-Medium and Medium-to-High 
         transition rates.
+
+    Raises
+    ------
+    ValueError
+        If the widths or shift parameters are invalid.
     """
     low_width, med_width, high_width = category_widths
 
-    if not np.isclose(low_width + med_width + high_width, 1.0):
+    if not np.isclose(
+        low_width + med_width + high_width, 
+        1.0,
+    ):
         raise ValueError("category_widths must sum to 1.")
 
-    if low_width <= 0 or med_width <= 0 or high_width <= 0:
-        raise ValueError("all category widths must be positive.")
+    if (
+        low_width <= 0 
+        or med_width <= 0 
+        or high_width <= 0
+    ):
+        raise ValueError("All category widths must be positive.")
 
     if shift_proportion < 0:
         raise ValueError("shift_proportion must be non-negative.")
@@ -539,11 +551,18 @@ def get_deterioration_rates(
             "shift_proportion must be less than or equal to the smallest transition category width."
         )
 
-    r_lm = shift_proportion / (low_width * shift_interval_days)
-    r_mh = shift_proportion / (med_width * shift_interval_days)
+    low_to_medium_rate = (
+        shift_proportion
+        / (low_width * shift_interval_days)
+    )
+    medium_to_high_rate = (
+        shift_proportion
+        / (med_width * shift_interval_days)
+    )
 
     def deterioration_function(t):
-        return r_lm, r_mh
+        """Return the time-invariant deterioration rates."""
+        return low_to_medium_rate, medium_to_high_rate
 
     return deterioration_function
 
