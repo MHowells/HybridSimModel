@@ -1,9 +1,19 @@
+"""
+Functions to implement different gatekeeping policies for referral flows
+in the hybrid simulation model. 
+
+Each function returns a gatekeeping function that can be used in the SD
+framework to calculate referral flows (lambda values). These referral
+flows are then used to inform the GP arrival flows in the DES model.
+"""
+
 import numpy as np
 
 LOW = 0
 MEDIUM = 1
 HIGH = 2
 PRIORITY_ORDER = [HIGH, MEDIUM, LOW]
+
 
 def strict_priority_gatekeeping(threshold):
     """
@@ -35,7 +45,8 @@ def strict_priority_gatekeeping(threshold):
         Parameters
         ----------
         stocks : list/array of scalars or arrays
-            Stock levels for each severity group.
+            Stock levels for each severity group, ordered by priority
+            (e.g. high, medium, low).
         population : float or array
             Included for compatibility with the SD framework, but unused.
         presenting_proportion : float in [0, 1]
@@ -115,7 +126,8 @@ def fixed_capacity_strict_gatekeeping(capacity):
         Parameters
         ----------
         stocks : list/array of scalars or arrays
-            Stock levels for each severity group.
+            Stock levels for each severity group, ordered by priority
+            (e.g. high, medium, low).
         population : float or array
             Included for compatibility with the SD framework, but unused.
         presenting_proportion : float in [0, 1]
@@ -189,7 +201,8 @@ def fixed_capacity_proportional_gatekeeping(capacity):
         Parameters
         ----------
         stocks : list/array of scalars or arrays
-            Stock levels for each severity group.
+            Stock levels for each severity group, ordered by priority
+            (e.g. low, medium, high).
         population : float or array
             Included for compatibility with the SD framework, but unused.
         presenting_proportion : float in [0, 1]
@@ -292,6 +305,9 @@ def weighted_priority_gatekeeping(threshold, weights):
             remaining_capacity -= allocation.sum()
             eligible = (demand - lambdas) > 1e-12
 
+            if allocation.sum() <= 1e-12:
+                break
+
         return lambdas
 
     def gatekeeping_function(stocks, population, presenting_proportion, t):
@@ -303,7 +319,8 @@ def weighted_priority_gatekeeping(threshold, weights):
         Parameters
         ----------
         stocks : list/array of scalars or arrays
-            Stock levels for each severity group.
+            Stock levels for each severity group, ordered by priority
+            (e.g. high, medium, low).
         population : float or array
             Included for compatibility with the SD framework, but unused.
         presenting_proportion : float in [0, 1]
@@ -351,7 +368,7 @@ def seasonal_capacity_gatekeeping(baseline=8, amplitude=2, period=365, phase_shi
     Strict severity-priority gatekeeping with a referral capacity that
     varies seasonally according to a sinusoidal function.
 
-    Patients are referred in severity order (e.g. high, medium, low),
+    Patients are referred in severity order (e.g. low, medium, high),
     where highest-priority demand is referred first, up to the total 
     referral capacity. Lower-priority demand is only referred if there
     is remaining capacity after referring all higher-priority demand.
@@ -381,7 +398,8 @@ def seasonal_capacity_gatekeeping(baseline=8, amplitude=2, period=365, phase_shi
         Parameters
         ----------
         stocks : list/array of scalars or arrays
-            Stock levels for each severity group.
+            Stock levels for each severity group, ordered by priority
+            (e.g. low, medium, high).
         population : float or array
             Included for compatibility with the SD framework.
         presenting_proportion : float in [0, 1]
@@ -477,7 +495,8 @@ def equal_access_proportion_gatekeeping(access_proportion):
         Parameters
         ----------
         stocks : list/array of scalars or arrays
-            Stock levels for each severity group..
+            Stock levels for each severity group, ordered by priority
+            (e.g. low, medium, high).
         population : float or array
             Included for compatibility with the SD framework, but unused.
         presenting_proportion : float in [0, 1]
@@ -532,7 +551,8 @@ def severity_specific_access_gatekeeping(proportions):
         Parameters
         ----------
         stocks : list/array of scalars or arrays
-            Stock levels for each severity group.
+            Stock levels for each severity group, ordered by priority
+            (e.g. low, medium, high).
         population : float or array
             Included for compatibility with the SD framework, but unused.
         presenting_proportion : float in [0, 1]
@@ -733,7 +753,8 @@ def severity_responsive_gatekeeping(
         Parameters
         ----------
         stocks : list/array of scalars or arrays
-            Stock levels for each severity group.
+            Stock levels for each severity group, ordered by priority
+            (e.g. low, medium, high).
         population : float or array
             Included for compatibility with the SD framework, but unused.
         presenting_proportion : float in [0, 1]
