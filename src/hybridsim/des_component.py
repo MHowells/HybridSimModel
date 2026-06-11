@@ -1235,58 +1235,69 @@ def get_network(
     subspecialty_service_dists,
     emergency_nodes,
     subspecialty_class,
-    reneging_class,
+    reneging_distribution,
     subspec_probs_low,
     subspec_probs_medium,
     subspec_probs_high,
-    gp_arrival_rates=[None, None, None],
-    other_arrival_rates=[None, None, None],
+    gp_arrival_rates=None,
+    other_arrival_rates=None,
 ):
-    """
-    Constructs a Ciw network object based on the provided parameters.
+    """Construct the Ciw simulation network.
+
     Parameters
     ----------
-    alphabets : list of lists
-        A list where each element is a list of activity letters for the corresponding
-        subspecialty and severity level.
+    alphabets : list[list]
+        Activity alphabets for each subspecialty and severity level.
     subspecialties : list
-        A list of subspecialty names.
-    subspecialty_service_dists : list of lists
-        A list where each element is a list of service time distributions for the
-        corresponding subspecialty.
+        Subspecialty names.
+    subspecialty_service_dists : list[list]
+        Service distributions for each subspecialty's activities.
     emergency_nodes : list
-        A list of nodes that should have infinite servers (these correspond to the
-        emergency activities in the PDFA alphabet).
+        Activity names that receive infinitely many servers.
     subspecialty_class : ciw.routing.NodeRouting
-        A routing strategy for the subspecialty customer classes.
-    reneging_class : ciw.dists.Distribution
-        A custom distribution class for modeling reneging times.
+        Routing strategy for subspecialty customer classes.
+    reneging_distribution : ciw.dists.Distribution
+        Reneging distribution for activity nodes.
     subspec_probs_low : list
-        A list of probabilities for each subspecialty given a Low severity level.
+        Subspecialty probabilities for low-severity arrivals.
     subspec_probs_medium : list
-        A list of probabilities for each subspecialty given a Medium severity level.
+        Subspecialty probabilities for medium-severity arrivals.
     subspec_probs_high : list
-        A list of probabilities for each subspecialty given a High severity level.
+        Subspecialty probabilities for high-severity arrivals.
     gp_arrival_rates : list, optional
-        A list of arrival rates for the GP node for Low, Medium, and High severity
-        levels (default is [None, None, None]).
+        GP arrival distributions for each severity.
     other_arrival_rates : list, optional
-        A list of arrival rates for the other node for Low, Medium, and High severity
-        levels (default is [None, None, None]).
+        Other-referral arrival distributions for each severity.
+
     Returns
     -------
     ciw.Network
-        A Ciw network object representing the discrete-event simulation model.
+        Configured discrete-event simulation network.
     """
+    if gp_arrival_rates is None:
+        gp_arrival_rates = [None, None, None]
+
+    if other_arrival_rates is None:
+        other_arrival_rates = [None, None, None]
+
     nodes = get_list_of_nodes(alphabets, subspecialties)
     arrivals = get_arrival_distributions_for_nodes(
-        nodes, subspecialties, gp_arrival_rates, other_arrival_rates
+        nodes, 
+        subspecialties, 
+        gp_arrival_rates, 
+        other_arrival_rates,
     )
     services = get_service_distributions_for_nodes(
-        nodes, subspecialties, subspecialty_service_dists
+        nodes, 
+        subspecialties, 
+        subspecialty_service_dists,
     )
     servers = get_servers(nodes, emergency_nodes)
-    routes = get_routing(nodes, subspecialties, subspecialty_class)
+    routes = get_routing(
+        nodes, 
+        subspecialties, 
+        subspecialty_class,
+    )
     class_changes = get_class_change_matrices(
         nodes,
         subspecialties,
@@ -1295,8 +1306,11 @@ def get_network(
         subspec_probs_high,
     )
     reneging_dists = get_reneging_time_distributions(
-        nodes, subspecialties, reneging_class
+        nodes, 
+        subspecialties, 
+        reneging_distribution,
     )
+
     N = ciw.create_network(
         arrival_distributions=arrivals,
         service_distributions=services,
