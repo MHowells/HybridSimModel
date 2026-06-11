@@ -49,10 +49,11 @@ class TestPDFARouting(unittest.TestCase):
         return ind
     
     def test_transition(self):
-        pdfa_matrix = np.zeros((2, 3, 3))
+        alphabet = ["A", "B", "C", "D"]
+
+        pdfa_matrix = np.zeros((len(alphabet), 3, 3))
         pdfa_matrix[0, 1, 2] = 1.0
         pdfa_matrix[1, 2, 1] = 1.0
-        alphabet = ["A", "B"]
         p_matrices = [pdfa_matrix, pdfa_matrix, pdfa_matrix]
         alphabets = [alphabet, alphabet, alphabet]
         activity_dictionary = {
@@ -82,8 +83,8 @@ class TestPDFARouting(unittest.TestCase):
         self.assertEqual([samples[i] for i in range(1, 4)], [0, 50, 50])
 
     def test_endpoint_transition(self):
-        pdfa_matrix = np.zeros((1, 3, 3))
-        alphabet = ["A"]
+        alphabet = ["A", "C", "D"]
+        pdfa_matrix = np.zeros((len(alphabet), 3, 3))
         p_matrices = [pdfa_matrix, pdfa_matrix, pdfa_matrix]
         alphabets = [alphabet, alphabet, alphabet]
         activity_dictionary = {
