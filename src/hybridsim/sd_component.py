@@ -404,8 +404,7 @@ def get_time_dependent_population_size(
 
 def get_time_dependent_incidence_rate(incidence_proportions, durations=np.NaN):
     """
-    Returns a function that calculates the incidence rate based on time
-    and population size, using a list of incidence proportions and durations.
+    Return a time-dependent incidence-rate function.
 
     Parameters
     ----------
@@ -417,44 +416,30 @@ def get_time_dependent_incidence_rate(incidence_proportions, durations=np.NaN):
     Returns
     -------
     function
-        A function that takes time t and population size, and returns
-        the incidence rate at time t.
+        Function accepting ``t`` and ``population_size`` and returning
+        the incidence flow at that time.
     """
-    if isinstance(incidence_proportions, (int, float)):
-        incidence_proportions = [incidence_proportions]
-    if isinstance(durations, (int, float)):
-        durations = [durations]
-
-    if len(incidence_proportions) != len(durations):
-        raise ValueError(
-            "The lengths of incidence_proportions and durations must match."
-        )
-
-    change_points = [0]
-    for d in durations:
-        change_points.append(change_points[-1] + d)
+    incidence_proportions, durations = normalise_piecewise_inputs(
+        incidence_proportions,
+        durations,
+        "incidence_proportions",
+    )
+    change_points = get_change_points(durations)
 
     def incidence_function(t, population_size):
-        """
-        Calculates the incidence rate at time t given a population size.
-
-        Parameters
-        ----------
-        t : float
-            The time at which to calculate the incidence.
-        population_size : int or float
-            The population size at time t.
-
-        Returns
-        -------
-        float
-            The incidence rate at time t.
-        """
+        """Return the incidence flow at time ``t``."""
         if population_size == 0:
             return 0.0
-        for i in range(len(durations)):
-            if change_points[i] <= t < change_points[i + 1]:
-                return incidence_proportions[i] * population_size
+
+        for index, incidence_proportion in enumerate(
+            incidence_proportions
+        ):
+            interval_start = change_points[index]
+            interval_end = change_points[index + 1]
+
+            if interval_start <= t < interval_end:
+                return incidence_proportion * population_size
+
         return incidence_proportions[-1] * population_size
 
     return incidence_function
