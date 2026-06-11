@@ -445,10 +445,12 @@ def get_time_dependent_incidence_rate(incidence_proportions, durations=np.NaN):
     return incidence_function
 
 
-def get_time_dependent_recovery_rate(recovery_proportions, durations=np.NaN):
+def get_time_dependent_recovery_rate(
+    recovery_proportions, 
+    durations=np.NaN,
+):
     """
-    Returns a function that calculates the recovery rate based on time
-    and stock size, using a list of recovery proportions and durations.
+    Return a time-dependent recovery-rate function.
 
     Parameters
     ----------
@@ -460,44 +462,30 @@ def get_time_dependent_recovery_rate(recovery_proportions, durations=np.NaN):
     Returns
     -------
     function
-        A function that takes time t and stock size, and returns
-        the recovery rate at time t.
+        Function accepting ``t`` and ``stock_size`` and returning the
+        recovery flow at that time.
     """
-    if isinstance(recovery_proportions, (int, float)):
-        recovery_proportions = [recovery_proportions]
-    if isinstance(durations, (int, float)):
-        durations = [durations]
-
-    if len(recovery_proportions) != len(durations):
-        raise ValueError(
-            "The lengths of recovery_proportions and durations must match."
-        )
-
-    change_points = [0]
-    for d in durations:
-        change_points.append(change_points[-1] + d)
+    recovery_proportions, durations = normalise_piecewise_inputs(
+        recovery_proportions,
+        durations,
+        "recovery_proportions",
+    )
+    change_points = get_change_points(durations)
 
     def recovery_function(t, stock_size):
-        """
-        Calculates the recovery rate based on time and stock size.
-
-        Parameters
-        ----------
-        t : float
-            The time at which to calculate the recovery rate.
-        stock_size : int or float
-            The stock size at time t.
-
-        Returns
-        -------
-        float
-            The recovery rate at time t.
-        """
+        """Return the recovery flow at time ``t``."""
         if stock_size == 0:
             return 0.0
-        for i in range(len(durations)):
-            if change_points[i] <= t < change_points[i + 1]:
-                return recovery_proportions[i] * stock_size
+
+        for index, recovery_proportion in enumerate(
+            recovery_proportions
+        ):
+            interval_start = change_points[index]
+            interval_end = change_points[index + 1]
+
+            if interval_start <= t < interval_end:
+                return recovery_proportion * stock_size
+
         return recovery_proportions[-1] * stock_size
 
     return recovery_function
