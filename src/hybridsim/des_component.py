@@ -6,10 +6,10 @@ arrival and service distributions, reneging behaviour, and network
 construction utilities.
 """
 
+from pathlib import Path
 import pickle
 from collections import namedtuple
 from math import isinf, nan
-from pathlib import Path
 
 import ciw
 import numpy as np
@@ -59,17 +59,11 @@ def custom_write_individual_record(self, individual):
         original_customer_class=individual.original_class,
         node=self.id_number,
         arrival_date=individual.arrival_date,
-        waiting_time=(
-            individual.service_start_date - individual.arrival_date
-        ),
+        waiting_time=individual.service_start_date - individual.arrival_date,
         service_start_date=individual.service_start_date,
-        service_time=(
-            individual.service_end_date - individual.service_start_date
-        ),
+        service_time=individual.service_end_date - individual.service_start_date,
         service_end_date=individual.service_end_date,
-        time_blocked=(
-            individual.exit_date - individual.service_end_date
-        ),
+        time_blocked=individual.exit_date - individual.service_end_date,
         exit_date=individual.exit_date,
         destination=individual.destination,
         queue_size_at_arrival=individual.queue_size_at_arrival,
@@ -94,9 +88,7 @@ def custom_write_incomplete_record(self, individual):
         service_end_date = None
     else:
         service_start_date = individual.service_start_date
-        waiting_time = (
-            individual.service_start_date - individual.arrival_date
-        )
+        waiting_time = individual.service_start_date - individual.arrival_date
         if individual.service_end_date > self.now:  # Still in service
             service_time = None
             service_end_date = None
@@ -126,11 +118,7 @@ def custom_write_incomplete_record(self, individual):
     return record
 
 
-def custom_write_interruption_record(
-    self, 
-    individual, 
-    destination=nan
-):
+def custom_write_interruption_record(self, individual, destination=nan):
     """
     Write a data record for an individual when being interrupted.
     """
@@ -138,16 +126,13 @@ def custom_write_interruption_record(
         server_id = False
     else:
         server_id = individual.server.id_number
-
     record = DataRecord(
         id_number=individual.id_number,
         customer_class=individual.previous_class,
         original_customer_class=individual.original_class,
         node=self.id_number,
         arrival_date=individual.arrival_date,
-        waiting_time=(
-            individual.service_start_date - individual.arrival_date
-        ),
+        waiting_time=individual.service_start_date - individual.arrival_date,
         service_start_date=individual.service_start_date,
         service_time=individual.original_service_time,
         service_end_date=nan,
@@ -191,11 +176,7 @@ def custom_write_reneging_record(self, individual):
     individual.data_records.append(record)
 
 
-def custom_write_baulking_or_rejection_record(
-    self, 
-    individual, 
-    record_type
-):
+def custom_write_baulking_or_rejection_record(self, individual, record_type):
     """
     Write a data record for an individual baulks.
     """
@@ -223,10 +204,11 @@ def custom_write_baulking_or_rejection_record(
 
 
 def apply_custom_record_changes():
-    """Apply the custom record-writing functions to Ciw nodes.
+    """
+    Apply custom Ciw record functions.
 
-    The custom functions extend Ciw's records with the original customer
-    class, severity level, and referral source.
+    This extends the default Ciw records so that the original customer 
+    class and severity level are included.
     """
     ciw.node.Node.write_individual_record = custom_write_individual_record
     ciw.node.Node.write_incomplete_record = custom_write_incomplete_record
@@ -256,7 +238,7 @@ def load_pdfa_and_alphabet(subspec, severity, pdfa_dir):
 def load_pdfa_lookup(
     pdfa_subspec_names, 
     severity_levels, 
-    pdfa_dir
+    pdfa_dir,
 ):
     """Load all PDFAs and alphabets into lookup dictionaries."""
     pdfa_lookup = {}
@@ -267,8 +249,8 @@ def load_pdfa_lookup(
             key = (subspec, severity)
             pdfa_lookup[key], alphabet_lookup[key] = (
                 load_pdfa_and_alphabet(
-                    subspec,
-                    severity,
+                    subspec, 
+                    severity, 
                     pdfa_dir,
                 )
             )
@@ -280,7 +262,7 @@ def get_pdfa_lists(
     pdfa_lookup, 
     alphabet_lookup, 
     pdfa_subspec_names, 
-    severity_levels
+    severity_levels,
 ):
     """Return PDFA and alphabet lists in the order expected by the DES routing code."""
     pdfas = [
@@ -375,8 +357,8 @@ def find_closed_pdfa_states(p_matrix, tol=1e-12):
     """
     n_states = p_matrix.shape[1]
 
-    # Collapse activities into a state-to-state transition graph.
-    # adjacency[i, j] is true when state i can reach state j.
+    # Collapse over activities to get a state-to-state transition graph.
+    # adjacency[i, j] = True means state i can move to state j somehow.
     adjacency = p_matrix.sum(axis=0) > tol
     graph = csr_matrix(adjacency)
 
@@ -391,7 +373,7 @@ def find_closed_pdfa_states(p_matrix, tol=1e-12):
     for component_id in range(n_components):
         group = np.where(labels == component_id)[0]
 
-        # A single-state component is recurrent only with a self-loop.
+        # A state is only cyclic if it can transition to itself.
         if len(group) == 1:
             state = group[0]
             if not adjacency[state, state]:
@@ -410,11 +392,13 @@ def find_closed_pdfa_states(p_matrix, tol=1e-12):
         if has_way_out:
             continue
 
-        # Tau is the probability not assigned to outgoing transitions.
+        # Check whether tau is possible from any state in the group.
         outgoing_probs = p_matrix[:, group, :].sum(axis=(0, 2))
         tau_probs = 1.0 - outgoing_probs
 
-        if np.any(tau_probs > tol):
+        has_tau = np.any(tau_probs > tol)
+
+        if has_tau:
             continue
 
         closed_recurrents.append(group.tolist())
@@ -424,8 +408,8 @@ def find_closed_pdfa_states(p_matrix, tol=1e-12):
 
 def add_tau_escape_to_states(
     pdfa, 
-    states, 
-    tau_prob=0.05
+    states,
+    tau_prob=0.05,
 ):
     """
     Adds an exit probability to selected PDFA states.
@@ -577,8 +561,8 @@ class PDFARouting(ciw.routing.NodeRouting):
 
         leaving_row = ind.route_position
         p_values = []
-        possible_next_states = []
-        possible_next_activities = []
+        possible_next_state = []
+        possible_next_activity = []
 
         for letter in range(len(alphabet)):
             trans_probs = p_matrix[
@@ -586,25 +570,24 @@ class PDFARouting(ciw.routing.NodeRouting):
                 leaving_row, 
                 :,
             ]
-
             if trans_probs.sum() > 0:
                 p_values.append(trans_probs.sum())
-                possible_next_states.append(
+                possible_next_state.append(
                     np.where(trans_probs > 0)[0][0]
                 )
-                possible_next_activities.append(letter)
+                possible_next_activity.append(letter)
 
         pre_op_index = alphabet.index(self.pre_op_letter)
 
         if (
             ind.pre_op 
-            and pre_op_index in possible_next_activities
+            and pre_op_index in possible_next_activity
         ):
             transitions = list(
                 zip(
                     p_values, 
-                    possible_next_states, 
-                    possible_next_activities,
+                    possible_next_state, 
+                    possible_next_activity,
                 )
             )
             filtered = [
@@ -613,16 +596,16 @@ class PDFARouting(ciw.routing.NodeRouting):
                 if activity != alphabet.index(self.pre_op_letter)
             ]
 
-            if filtered:
+            if len(filtered) > 0:
                 (
                     p_values, 
-                    possible_next_states, 
-                    possible_next_activities
+                    possible_next_state, 
+                    possible_next_activity
                 ) = zip(*filtered)
 
                 total_probability = sum(p_values)
                 p_values = [
-                    probability / total_probability 
+                    probability / total_probability
                     for probability in p_values
                 ]
 
@@ -634,7 +617,7 @@ class PDFARouting(ciw.routing.NodeRouting):
                     adjusted_pdfa
                 )
 
-                if closed_states_check:
+                if len(closed_states_check) > 0:
                     for group in closed_states_check:
                         adjusted_pdfa = add_tau_escape_to_states(
                             adjusted_pdfa, 
@@ -642,8 +625,8 @@ class PDFARouting(ciw.routing.NodeRouting):
                         )
 
                     p_values = []
-                    possible_next_states = []
-                    possible_next_activities = []
+                    possible_next_state = []
+                    possible_next_activity = []
 
                     for letter in range(len(alphabet)):
                         trans_probs = adjusted_pdfa[
@@ -653,40 +636,38 @@ class PDFARouting(ciw.routing.NodeRouting):
                         ]
                         if trans_probs.sum() > 0:
                             p_values.append(trans_probs.sum())
-                            possible_next_states.append(
+                            possible_next_state.append(
                                 np.where(trans_probs > 0)[0][0]
                             )
-                            possible_next_activities.append(letter)
+                            possible_next_activity.append(letter)
 
-                possible_next_states = list(
-                    possible_next_states
+                possible_next_state = list(
+                    possible_next_state
                 )
-                possible_next_activities = list(
-                    possible_next_activities
+                possible_next_activity = list(
+                    possible_next_activity
                 )
             else:
                 p_values = []
-                possible_next_states = []
-                possible_next_activities = []
+                possible_next_state = []
+                possible_next_activity = []
 
-        if p_values:
+        if len(p_values) > 0:
             final_prob = max(0, 1 - sum(p_values))
         else:
             final_prob = 1
 
         if final_prob > 0:
             p_values.append(final_prob)
-            possible_next_states.append("tau")
-            possible_next_activities.append(-1)
+            possible_next_state.append("tau")
+            possible_next_activity.append(-1)
 
         next_activity = ciw.rng.choice(
-            a=possible_next_activities, 
+            a=possible_next_activity, 
             p=p_values,
         )
-        activity_position = possible_next_activities.index(
-            next_activity
-        )
-        next_state = possible_next_states[activity_position]
+        activity_position = possible_next_activity.index(next_activity)
+        next_state = possible_next_state[activity_position]
 
         if next_activity == -1:
             ind.route_position = -1
@@ -694,8 +675,31 @@ class PDFARouting(ciw.routing.NodeRouting):
         else:
             next_node = self.activity_dict[alphabet[next_activity]]
             ind.route_position = next_state
-
             return self.simulation.nodes[next_node + node_offset]
+        
+
+def make_deterministic_service_distributions(service_values):
+    """
+    Convert numeric service-time values into Ciw Deterministic distributions.
+
+    Parameters
+    ----------
+    service_values : list[list[float]]
+        Nested list where each row corresponds to one subspecialty and each
+        column corresponds to one activity.
+
+    Returns
+    -------
+    list[list[ciw.dists.Deterministic]]
+        Service distributions in the format expected by des.get_network().
+    """
+    return [
+        [
+            ciw.dists.Deterministic(value=float(value))
+            for value in subspecialty_values
+        ]
+        for subspecialty_values in service_values
+    ]
 
 
 def make_gp_arrival_rates(
