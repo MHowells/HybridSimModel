@@ -9,7 +9,6 @@ utilities for adding a simulation warm-up period.
 import numpy as np
 from scipy.integrate import odeint
 
-
 LOW = 0
 MEDIUM = 1
 HIGH = 2
@@ -223,15 +222,19 @@ class SD:
         )
 
         w = unwell_splits
-        self.initial_population = population_function
-        unwell_pop = self.initial_population(t=0) * initial_unwell_proportion
-        self.P = [unwell_pop * w[0], unwell_pop * w[1], unwell_pop * w[2]]
+        self.population_size = population_function
+        unwell_pop = self.population_size(t=0) * initial_unwell_proportion
+        self.P = [
+            unwell_pop * w[0], 
+            unwell_pop * w[1], 
+            unwell_pop * w[2]
+        ]
         self.presenting_proportion = presenting_proportion
         self.gatekeeping_function = gatekeeping_function
         self.deterioration_rate = deterioration_function
         self.incidence_rate = incidence_function
         self.recovery_rate = recovery_function
-        self.time = np.array([0.0])
+        self.time = np.array([0])
         self.lambdas = None
 
     def differential_equations(
@@ -256,22 +259,14 @@ class SD:
             stocks.
         """
         P_low, P_medium, P_high = y
-        N_current = (
-            P_low 
-            + P_medium 
-            + P_high
-        )
-        all_stocks = [
-            P_low, 
-            P_medium, 
-            P_high,
-        ]
+        N_current = P_low + P_medium + P_high
+        all_stocks = [P_low, P_medium, P_high]
 
         if N_current == 0:
-            return 0.0, 0.0, 0.0
+            return 0, 0, 0
 
         current_population = max(
-            self.initial_population(t=time_domain), 
+            self.population_size(t=time_domain), 
             0,
         )
         
@@ -300,7 +295,7 @@ class SD:
             )
             + self.incidence_rate(
                 t=time_domain, 
-                population_size=current_population,
+                population_size=current_population
             )
         )
 
@@ -316,7 +311,10 @@ class SD:
         )
         return dP_lowdt, dP_mediumdt, dP_highdt
 
-    def solve(self, t):
+    def solve(
+        self,
+        t,
+    ):
         """
         Solve the differential equations over the supplied times.
 
@@ -337,23 +335,14 @@ class SD:
         )
 
         P_low, P_medium, P_high = results.T
-
         self.P[LOW] = np.append(self.P[LOW], P_low[1:])
         self.P[MEDIUM] = np.append(self.P[MEDIUM], P_medium[1:])
         self.P[HIGH] = np.append(self.P[HIGH], P_high[1:])
 
         # Extract the lambdas from the results
         self.lambdas = self.gatekeeping_function(
-            stocks=[
-                P_low, 
-                P_medium, 
-                P_high,
-            ],
-            population=(
-                P_low 
-                + P_medium 
-                + P_high
-            ),
+            stocks=[P_low, P_medium, P_high],
+            population=P_low + P_medium + P_high,
             presenting_proportion=self.presenting_proportion,
             t=t,
         )
@@ -361,7 +350,7 @@ class SD:
 
 def get_time_dependent_population_size(
     population_sizes, 
-    durations=np.NaN
+    durations=np.NaN,
 ):
     """
     Return a time-dependent population-size function.
@@ -430,7 +419,7 @@ def get_time_dependent_incidence_rate(incidence_proportions, durations=np.NaN):
         """Return the incidence flow at time ``t``."""
         if population_size == 0:
             return 0.0
-
+        
         for index, incidence_proportion in enumerate(
             incidence_proportions
         ):
@@ -438,7 +427,7 @@ def get_time_dependent_incidence_rate(incidence_proportions, durations=np.NaN):
             interval_end = change_points[index + 1]
 
             if interval_start <= t < interval_end:
-                return incidence_proportion * population_size
+                return (incidence_proportion * population_size)
 
         return incidence_proportions[-1] * population_size
 
@@ -476,7 +465,7 @@ def get_time_dependent_recovery_rate(
         """Return the recovery flow at time ``t``."""
         if stock_size == 0:
             return 0.0
-
+        
         for index, recovery_proportion in enumerate(
             recovery_proportions
         ):
@@ -538,7 +527,7 @@ def get_deterioration_rates(
         or med_width <= 0 
         or high_width <= 0
     ):
-        raise ValueError("All category widths must be positive.")
+        raise ValueError("all category widths must be positive.")
 
     if shift_proportion < 0:
         raise ValueError("shift_proportion must be non-negative.")
@@ -561,7 +550,6 @@ def get_deterioration_rates(
     )
 
     def deterioration_function(t):
-        """Return the time-invariant deterioration rates."""
         return low_to_medium_rate, medium_to_high_rate
 
     return deterioration_function
@@ -604,8 +592,8 @@ def add_constant_lambda_warmup(
         Time vector corresponding to the lambda values with warm-up,
         shape (T + warmup_points,).
     """
-    lambdas = np.asarray(lambdas, dtype=float)
-    ts = np.asarray(ts, dtype=float)
+    lambdas = np.asarray(lambdas)
+    ts = np.asarray(ts)
 
     dt = ts[1] - ts[0]
     warmup_points = int(round(warmup_days / dt))
