@@ -97,6 +97,59 @@ def validate_initial_state_inputs(
 
     return initial_unwell_proportion, unwell_splits
 
+
+def normalise_piecewise_inputs(values, durations, value_name):
+    """
+    Convert piecewise values and durations to lists of equal length.
+
+    Parameters
+    ----------
+    values : scalar or iterable
+        Values applied over successive time intervals.
+    durations : scalar or iterable
+        Durations of the successive time intervals.
+    value_name : str
+        Name used to construct an informative error message.
+
+    Returns
+    -------
+    tuple[list, list]
+        Normalised values and durations.
+
+    Raises
+    ------
+    ValueError
+        If the values and durations have different lengths.
+    """
+    if np.isscalar(values):
+        values = [values]
+    else:
+        values = list(values)
+
+    if np.isscalar(durations):
+        durations = [durations]
+    else:
+        durations = list(durations)
+
+    if len(values) != len(durations):
+        raise ValueError(
+            f"The lengths of {value_name} and durations must match. "
+            f"Received {len(values)} values and {len(durations)} "
+            "durations."
+        )
+
+    return values, durations
+
+
+def get_change_points(durations):
+    """Return cumulative interval boundaries beginning at zero."""
+    change_points = [0]
+
+    for duration in durations:
+        change_points.append(change_points[-1] + duration)
+
+    return change_points
+
 class SD:
     """
     A class to hold the SD component.
