@@ -568,7 +568,11 @@ def get_deterioration_rates(
 
 
 def add_constant_lambda_warmup(
-    lambdas, ts, warmup_days=365 * 2, value="initial", shift_time=True
+    lambdas, 
+    ts, 
+    warmup_days=365, 
+    value="initial", 
+    shift_time=True,
 ):
     """
     Adds a warm-up period to the lambda values, where the lambda values
@@ -580,20 +584,16 @@ def add_constant_lambda_warmup(
     lambdas : array-like
         Array of lambda values with shape (n_groups, T).
     ts : array-like
-        Time vector corresponding to the lambda values.
-    warmup_days : int or float
-        Duration of the warm-up period in the same time units as ts
-        (default is 2 years).
-    value : "initial" or array-like
-        If "initial", the warm-up lambda values will be set to the
-        initial lambda values (i.e., lambdas[:, 0]).
-        If an array-like is provided, it should contain the lambda
-        values to use during the warm-up period for each group (shape
-        should be (n_groups,)).
-    shift_time : bool
-        If True, the time vector will be shifted so that the warm-up
-        period starts at t=0. If False, the time vector will include
-        negative values for the warm-up period (default is True).
+        Regularly spaced time values corresponding to the columns in
+        ``lambdas``.
+    warmup_days : int or float, default=365
+        Length of the warm-up period in the same units as ``ts``.
+    value : {"initial"} or array-like, default="initial"
+        Lambda value for each group during warm-up. ``"initial"`` uses
+        the first value of each group.
+    shift_time : bool, default=True
+        When true, shift the complete time vector so that warm-up starts
+        at zero. Otherwise, warm-up uses negative time values.
 
     Returns
     -------
@@ -604,23 +604,40 @@ def add_constant_lambda_warmup(
         Time vector corresponding to the lambda values with warm-up,
         shape (T + warmup_points,).
     """
-    lambdas = np.asarray(lambdas)
-    ts = np.asarray(ts)
+    lambdas = np.asarray(lambdas, dtype=float)
+    ts = np.asarray(ts, dtype=float)
+
     dt = ts[1] - ts[0]
     warmup_points = int(round(warmup_days / dt))
 
-    if value == "initial":
+    if isinstance(value, str):
+        if value != "initial":
+            raise ValueError(
+                'value must be "initial" or an array-like object.'
+            )
+
         warmup_values = lambdas[:, [0]]
     else:
-        warmup_values = np.asarray(value, dtype=float).reshape(-1, 1)
+        warmup_values = np.asarray(
+            value, 
+            dtype=float,
+        ).reshape(-1, 1)
+
         if warmup_values.shape[0] != lambdas.shape[0]:
             raise ValueError(
                 f"Expected {lambdas.shape[0]} warm-up values, "
                 f"but received {warmup_values.shape[0]}."
             )
 
-    warmup_lambdas = np.repeat(warmup_values, warmup_points, axis=1)
-    lambdas_with_warmup = np.concatenate([warmup_lambdas, lambdas], axis=1)
+    warmup_lambdas = np.repeat(
+        warmup_values, 
+        warmup_points, 
+        axis=1,
+    )
+    lambdas_with_warmup = np.concatenate(
+        [warmup_lambdas, lambdas], 
+        axis=1,
+    )
 
     if shift_time:
         ts_with_warmup = np.arange(lambdas_with_warmup.shape[1]) * dt
