@@ -698,6 +698,103 @@ class PDFARouting(ciw.routing.NodeRouting):
             return self.simulation.nodes[next_node + node_offset]
 
 
+def make_gp_arrival_rates(
+    lambdas, 
+    t, 
+    max_sample_date
+):
+    """
+    Create Poisson interval distributions for GP arrivals.
+
+    Parameters
+    ----------
+    lambdas : array-like
+        Rate array with shape ``(T, 3)``. Columns represent low,
+        medium, and high severity.
+    t : array-like
+        Time points corresponding to rows in ``lambdas``.
+    max_sample_date : float
+        Maximum sampling date used by Ciw.
+
+    Returns
+    -------
+    list[ciw.dists.PoissonIntervals]
+        One arrival distribution for each severity level.
+
+    Raises
+    ------
+    ValueError
+        If ``lambdas`` does not have shape ``(len(t), 3)``.
+    """
+    lambdas = np.asarray(lambdas, dtype=float)
+    t = np.asarray(t, dtype=float)
+
+    if lambdas.ndim != 2:
+        raise ValueError(
+            "Expected lambdas to be two-dimensional with shape "
+            f"(T, 3), but received {lambdas.shape}."
+        )
+
+    if lambdas.shape[0] != len(t):
+        raise ValueError(
+            f"Expected lambdas.shape[0] to match len(t), but got "
+            f"lambdas.shape={lambdas.shape} and len(t)={len(t)}."
+        )
+
+    if lambdas.shape[1] != 3:
+        raise ValueError(
+            "Expected three severity columns, but received "
+            f"{lambdas.shape[1]}."
+        )
+
+    return [
+        ciw.dists.PoissonIntervals(
+            rates=list(lambdas[:-1, severity_index]),
+            endpoints=list(t[1:]),
+            max_sample_date=max_sample_date,
+        )
+        for severity_index in range(3)
+    ]
+
+
+def make_other_referral_arrival_rates(
+    weekday_rates,
+    endpoints,
+    max_sample_date,
+    severity_proportions=(0.5, 0.3, 0.2),
+):
+    """
+    Create Poisson interval distributions for other referrals.
+
+    Parameters
+    ----------
+    weekday_rates : array-like
+        Arrival rates for the seven weekdays.
+    endpoints : array-like
+        End time for each weekday interval.
+    max_sample_date : float
+        Maximum sampling date used by Ciw.
+    severity_proportions : tuple, default=(0.5, 0.3, 0.2)
+        Low-, medium-, and high-severity proportions.
+
+    Returns
+    -------
+    list[ciw.dists.PoissonIntervals]
+        One arrival distribution for each severity level.
+    """
+    return [
+        ciw.dists.PoissonIntervals(
+            rates=[
+                rate * severity_proportion
+                for rate in weekday_rates
+            ],
+            endpoints=list(endpoints),
+            max_sample_date=max_sample_date,
+        )
+        for severity_proportion in severity_proportions
+    ]
+
+
 def get_arrival_distributions_for_nodes(
     nodes,
     subspecialties,
