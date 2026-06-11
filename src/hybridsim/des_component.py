@@ -834,22 +834,20 @@ def get_arrival_distributions_for_nodes(
     n_nodes = len(nodes)
     inactive_nodes = [None] * (n_nodes - 2)
 
+    low_arrivals = (
+        [gp_arrival_rates[0], other_arrival_rates[0]] + inactive_nodes
+    )
+    medium_arrivals = (
+        [gp_arrival_rates[1], other_arrival_rates[1]] + inactive_nodes
+    )
+    high_arrivals = (
+        [gp_arrival_rates[2], other_arrival_rates[2]] + inactive_nodes
+    )
+
     arrival_dict = {
-        "Low": [
-            gp_arrival_rates[0],
-            other_arrival_rates[0],
-        ]
-        + inactive_nodes.copy(),
-        "Medium": [
-            gp_arrival_rates[1],
-            other_arrival_rates[1],
-        ]
-        + inactive_nodes.copy(),
-        "High": [
-            gp_arrival_rates[2],
-            other_arrival_rates[2],
-        ]
-        + inactive_nodes.copy(),
+        "Low": low_arrivals,
+        "Medium": medium_arrivals,
+        "High": high_arrivals,
     }
 
     for subspec in subspecialties:
@@ -858,7 +856,11 @@ def get_arrival_distributions_for_nodes(
     return arrival_dict
 
 
-def get_service_distributions_for_nodes(nodes, subspecialties, subspecialty_services):
+def get_service_distributions_for_nodes(
+    nodes, 
+    subspecialties, 
+    subspecialty_services,
+):
     """
     Construct service distributions for every customer class.
 
@@ -877,24 +879,23 @@ def get_service_distributions_for_nodes(nodes, subspecialties, subspecialty_serv
         Customer classes mapped to node-specific service
         distributions.
     """
+    low_services = [ciw.dists.Deterministic(value=0) for _ in nodes]
+    medium_services = [ciw.dists.Deterministic(value=0) for _ in nodes]
+    high_services = [ciw.dists.Deterministic(value=0) for _ in nodes]
+
     service_dict = {
-        severity: [
-            ciw.dists.Deterministic(value=0)
-            for _ in nodes
-        ]
-        for severity in ("Low", "Medium", "High")
+        "Low": low_services,
+        "Medium": medium_services,
+        "High": high_services,
     }
 
-    for index, subspec in enumerate(subspecialties):
-        services = [
-            ciw.dists.Deterministic(value=0) 
-            for _ in nodes
-        ]
-        activities = len(subspecialty_services[index])
-        start = 2 + (activities * index)
-        stop = start + activities
+    for i, subspec in enumerate(subspecialties):
+        services = [ciw.dists.Deterministic(value=0) for _ in nodes]
+        activities = len(subspecialty_services[i])
+        start_index = 2 + (activities * i)
+        stop_index = start_index + activities
 
-        services[start:stop] = subspecialty_services[index]
+        services[start_index:stop_index] = subspecialty_services[i]
         service_dict[subspec] = services
 
     return service_dict
@@ -925,11 +926,12 @@ def get_servers(nodes, emergency_nodes=None):
     servers = []
 
     for node in nodes:
-        if node == "*" or node in emergency_nodes:
+        if node == "*":
+            servers.append(float("inf"))
+        elif node in emergency_nodes:
             servers.append(float("inf"))
         else:
             servers.append(1)
-
     return servers
 
 
@@ -963,8 +965,7 @@ def get_routing(nodes, subspecialties, subspecialty_class):
 
     for subspec in subspecialties:
         subspec_routes = [
-            subspecialty_class 
-            for _ in nodes
+            subspecialty_class for _ in nodes
         ]
         routing_dict[subspec] = ciw.routing.NetworkRouting(
             routers=subspec_routes
@@ -980,7 +981,8 @@ def get_class_change_matrices(
     subspec_probs_medium, 
     subspec_probs_high,
 ):
-    """Construct the class-change matrix for each network node.
+    """
+    Construct the class-change matrix for each network node.
 
     Parameters
     ----------
@@ -1023,9 +1025,9 @@ def get_class_change_matrices(
             dist[spec] = severity_probs[level][i]
         referral_class_changes[level] = dist
 
-    for subspec in subspecialties:
-        referral_class_changes[subspec] = {
-            key: float(key == subspec) 
+    for spec in subspecialties:
+        referral_class_changes[spec] = {
+            key: float(key == spec) 
             for key in zero_dict()
         }
 
@@ -1068,7 +1070,7 @@ class PreOpExpiryDist(ciw.dists.Distribution):
     def __init__(
         self, 
         activity_dict, 
-        subspec_dict, 
+        subspec_dict,
         pre_op_letter, 
         elective_surgery_letter,
     ):
@@ -1079,7 +1081,8 @@ class PreOpExpiryDist(ciw.dists.Distribution):
         self.elective_surgery_letter = elective_surgery_letter
 
     def sample(self, t, ind=None):
-        """Return the remaining validity time for an assessment.
+        """
+        Return the remaining validity time for an assessment.
 
         Parameters
         ----------
@@ -1095,15 +1098,15 @@ class PreOpExpiryDist(ciw.dists.Distribution):
             individual has no current assessment.
         """
         subspec_offset = (
-            len(self.activity_dict)
+            len(self.activity_dict) 
             * self.subspec_dict[ind.customer_class]
         )
         pre_op_node = (
-            self.activity_dict[self.pre_op_letter]
+            self.activity_dict[self.pre_op_letter] 
             + subspec_offset
         )
         surgery_node = (
-            self.activity_dict[self.elective_surgery_letter]
+            self.activity_dict[self.elective_surgery_letter] 
             + subspec_offset
         )
 
@@ -1120,23 +1123,17 @@ class PreOpExpiryDist(ciw.dists.Distribution):
                 and str(i.service_end_date) != "nan"
             )
         ]
-        
+
         if len(pre_op_appts) > 0:
             last_pre_op = pre_op_appts[-1]
             if len(surgical_appts) > 0:
                 last_surgical_op = surgical_appts[-1]
                 if last_pre_op > last_surgical_op:
-                    return max(
-                        0.0, 
-                        PRE_OP_VALIDITY_DAYS - (t - last_pre_op)
-                    )
+                    return PRE_OP_VALIDITY_DAYS - (t - last_pre_op)
                 else:
                     return float("inf")
             else:
-                return max(
-                    0.0, 
-                    PRE_OP_VALIDITY_DAYS - (t - last_pre_op)
-                )
+                return PRE_OP_VALIDITY_DAYS - (t - last_pre_op)
         else:
             return float("inf")
 
@@ -1152,8 +1149,8 @@ class JockeyRouting(PDFARouting):
 
     def __init__(
         self,
-        pdfa_matrices,
-        alphabets,
+        pdfa_matrix,
+        alphabet,
         activity_dict,
         subspec_dict,
         pre_op_letter,
@@ -1164,8 +1161,8 @@ class JockeyRouting(PDFARouting):
         """
         self.pre_op_letter = pre_op_letter
         super().__init__(
-            pdfa_matrices,
-            alphabets,
+            pdfa_matrix,
+            alphabet,
             activity_dict,
             subspec_dict,
             pre_op_letter,
@@ -1173,7 +1170,8 @@ class JockeyRouting(PDFARouting):
         )
 
     def next_node_for_jockeying(self, ind):
-        """Return the individual's pre-operative assessment node.
+        """
+        Return the individual's pre-operative assessment node.
 
         Parameters
         ----------
@@ -1198,7 +1196,8 @@ def get_reneging_time_distributions(
     subspecs, 
     reneging_distribution,
 ):
-    """Construct reneging distributions for every customer class.
+    """
+    Construct reneging distributions for every customer class.
 
     Parameters
     ----------
@@ -1216,8 +1215,7 @@ def get_reneging_time_distributions(
         distributions.
     """
     reneging_distributions = (
-        [None, None] 
-        + [reneging_distribution] * (len(nodes) - 2)
+        [None, None] + [reneging_distribution] * (len(nodes) - 2)
     )
     reneging_dict = {
         "Low": reneging_distributions,
@@ -1281,10 +1279,10 @@ def get_network(
         A Ciw network object representing the discrete-event simulation model.
     """
     nodes = get_list_of_nodes(alphabets, subspecialties)
-    arrivals = get_arrival_distributions(
+    arrivals = get_arrival_distributions_for_nodes(
         nodes, subspecialties, gp_arrival_rates, other_arrival_rates
     )
-    services = get_service_distributions(
+    services = get_service_distributions_for_nodes(
         nodes, subspecialties, subspecialty_service_dists
     )
     servers = get_servers(nodes, emergency_nodes)
