@@ -237,6 +237,65 @@ def apply_custom_record_changes():
     )
 
 
+def load_pdfa_and_alphabet(subspec, severity, pdfa_dir):
+    """Load one PDFA matrix and its alphabet."""
+    pdfa_dir = Path(pdfa_dir)
+    stem = f"{subspec}_{severity}"
+
+    pdfa_path = pdfa_dir / f"{stem}_pdfa.npy"
+    alphabet_path = pdfa_dir / f"{stem}_alphabet.pkl"
+
+    pdfa = np.load(pdfa_path)
+
+    with alphabet_path.open("rb") as file:
+        alphabet = pickle.load(file)
+
+    return pdfa, alphabet
+
+
+def load_pdfa_lookup(
+    pdfa_subspec_names, 
+    severity_levels, 
+    pdfa_dir
+):
+    """Load all PDFAs and alphabets into lookup dictionaries."""
+    pdfa_lookup = {}
+    alphabet_lookup = {}
+
+    for subspec in pdfa_subspec_names:
+        for severity in severity_levels:
+            key = (subspec, severity)
+            pdfa_lookup[key], alphabet_lookup[key] = (
+                load_pdfa_and_alphabet(
+                    subspec,
+                    severity,
+                    pdfa_dir,
+                )
+            )
+
+    return pdfa_lookup, alphabet_lookup
+
+
+def get_pdfa_lists(
+    pdfa_lookup, 
+    alphabet_lookup, 
+    pdfa_subspec_names, 
+    severity_levels
+):
+    """Return PDFA and alphabet lists in the order expected by the DES routing code."""
+    pdfas = [
+        pdfa_lookup[(subspec, severity)]
+        for subspec in pdfa_subspec_names
+        for severity in severity_levels
+    ]
+    alphabets = [
+        alphabet_lookup[(subspec, severity)]
+        for subspec in pdfa_subspec_names
+        for severity in severity_levels
+    ]
+    return pdfas, alphabets
+
+
 def get_activity_dictionaries(alphabet, start_value=2):
     """
     Create forward and reverse mappings for activity letters.
