@@ -1,10 +1,19 @@
+"""
+Define the system-dynamics component of the orthopaedic model.
+
+This module provides the system-dynamics stock model, time-dependent
+population, incidence and recovery functions, deterioration rates, and
+utilities for adding a simulation warm-up period.
+"""
+
 import numpy as np
 from scipy.integrate import odeint
-import matplotlib.pyplot as plt
+
 
 LOW = 0
 MEDIUM = 1
 HIGH = 2
+
 PRIORITY_ORDER = [HIGH, MEDIUM, LOW]
 
 
@@ -150,11 +159,25 @@ def get_change_points(durations):
 
     return change_points
 
+
 class SD:
     """
-    A class to hold the SD component.
-    """
+    Represent the system dynamics component of the model.
 
+    The model contains low-, medium-, and high-severity population
+    stocks. Population movements are determined by presentation,
+    deterioration, incidence, and recovery functions.
+
+    Attributes
+    ----------
+    P : list[numpy.ndarray]
+        Historical values for the low-, medium-, and high-severity
+        population stocks.
+    time : numpy.ndarray
+        Time points represented by the stored population histories.
+    lambdas : numpy.ndarray or None
+        Most recently calculated presentation rates.
+    """
     def __init__(
         self,
         population_function,
@@ -167,27 +190,38 @@ class SD:
         recovery_function,
     ):
         """
-        Initialised the parameters for the SD component
+        Initialise the system dynamics component.
 
         Parameters
         ----------
-        population_function : function
-            A function that returns the population size at a given time.
-        initial_unwell_proportion : a positive float <= 1
-            proportion of the initial population that is unwell
-        unwell_splits : a tuple of three floats that sum to 1
-            representing the proportions of the unwell population in each stock
-        gatekeeping_function : a function
-            function to calculate lambda values for each stock
-        presenting_proportion : a positive float <= 1
-            proportion of patients presenting for treatment
-        deterioration_function : a function
-            function to calculate the rate at which patients deteriorate
-        incidence_function : a function
-            function to calculate the rate at which new patients enter the system
-        recovery_function : a function
-            function to calculate the rate at which patients recover
+        population_function : callable
+            Function accepting ``t`` and returning the total population
+            at that time.
+        initial_unwell_proportion : float
+            Proportion of the initial population that is unwell.
+        unwell_splits : sequence of three floats
+            Proportions of the unwell population assigned to the low-,
+            medium-, and high-severity stocks.
+        gatekeeping_function : callable
+            Function calculating presentation rates for each stock.
+        presenting_proportion : float
+            Proportion of eligible patients who present for treatment.
+        deterioration_function : callable
+            Function returning the low-to-medium and medium-to-high
+            deterioration rates.
+        incidence_function : callable
+            Function calculating the number of new unwell patients.
+        recovery_function : callable
+            Function calculating the number of recovering patients.
         """
+        (
+            initial_unwell_proportion,
+            unwell_splits,
+        ) = validate_initial_state_inputs(
+            initial_unwell_proportion,
+            unwell_splits,
+        )
+
         w = unwell_splits
         self.initial_population = population_function
         unwell_pop = self.initial_population(t=0) * initial_unwell_proportion
@@ -197,7 +231,7 @@ class SD:
         self.deterioration_rate = deterioration_function
         self.incidence_rate = incidence_function
         self.recovery_rate = recovery_function
-        self.time = np.array([0])
+        self.time = np.array([0.0])
         self.lambdas = None
 
     def differential_equations(
@@ -206,30 +240,41 @@ class SD:
         time_domain,
     ):
         """
-        Defines the system of differential equations that describe the
-        population model.
+        Calculate the rates of change for the severity stocks.
 
         Parameters
         ----------
-        y : a tuple of three integers
-            representing the populations in each stock
-        time_domain : a float
-            representing the time domain for the simulation
+        y : sequence of three floats
+            Current low-, medium-, and high-severity populations.
+        time_domain : float
+            Current simulation time.
 
         Returns
         -------
-        tuple
-            dP_onedt, dP_twodt, dP_threedt : floats
+        tuple[float, float, float]
+            Rates of change for the low-, medium-, and high-severity
+            stocks.
         """
         P_low, P_medium, P_high = y
-        N_current = P_low + P_medium + P_high
-        all_stocks = [P_low, P_medium, P_high]
+        N_current = (
+            P_low 
+            + P_medium 
+            + P_high
+        )
+        all_stocks = [
+            P_low, 
+            P_medium, 
+            P_high,
+        ]
 
         if N_current == 0:
-            return 0, 0, 0
+            return 0.0, 0.0, 0.0
 
-        current_population = max(self.initial_population(t=time_domain), 0)
-
+        current_population = max(
+            self.initial_population(t=time_domain), 
+            0,
+        )
+        
         lambdas = self.gatekeeping_function(
             stocks=all_stocks,
             population=N_current,
@@ -238,37 +283,50 @@ class SD:
         )
 
         deterioration = self.deterioration_rate(t=time_domain)
-        if np.isscalar(deterioration): # Backwards-compatible scalar deterioration.
-            det_lm = deterioration
-            det_mh = deterioration
+
+        # Continue supporting functions that return one shared rate.
+        if np.isscalar(deterioration):
+            low_to_medium_rate = deterioration
+            medium_to_high_rate = deterioration
         else:
-            det_lm, det_mh = deterioration
+            low_to_medium_rate, medium_to_high_rate = deterioration
 
         dP_lowdt = (
-            -lambdas[0]
-            - (det_lm * P_low)
-            - (self.recovery_rate(t=time_domain, stock_size=N_current))
-            + (self.incidence_rate(t=time_domain, population_size=current_population))
+            -lambdas[LOW]
+            - (low_to_medium_rate * P_low)
+            - self.recovery_rate(
+                t=time_domain, 
+                stock_size=N_current,
+            )
+            + self.incidence_rate(
+                t=time_domain, 
+                population_size=current_population,
+            )
         )
+
         dP_mediumdt = (
-            (det_lm * P_low)
-            - (det_mh * P_medium)
-            - lambdas[1]
+            (low_to_medium_rate * P_low)
+            - (medium_to_high_rate * P_medium)
+            - lambdas[MEDIUM]
         )
+
         dP_highdt = (
-            (det_mh * P_medium)
-            - lambdas[2]
+            (medium_to_high_rate * P_medium)
+            - lambdas[HIGH]
         )
-        
         return dP_lowdt, dP_mediumdt, dP_highdt
 
-    def solve(
-        self,
-        t,
-    ):
+    def solve(self, t):
         """
-        Solves the differential equations from the time of the previous event
-        to time t.
+        Solve the differential equations over the supplied times.
+
+        The first time point is treated as the start of the interval.
+        Results after that point are appended to the stored histories.
+
+        Parameters
+        ----------
+        t : array-like
+            Increasing time points over which to solve the equations.
         """
         # Solve the SD over the relevant time domain
         y = self.P
@@ -279,14 +337,23 @@ class SD:
         )
 
         P_low, P_medium, P_high = results.T
-        self.P[0] = np.append(self.P[0], P_low[1:])
-        self.P[1] = np.append(self.P[1], P_medium[1:])
-        self.P[2] = np.append(self.P[2], P_high[1:])
+
+        self.P[LOW] = np.append(self.P[LOW], P_low[1:])
+        self.P[MEDIUM] = np.append(self.P[MEDIUM], P_medium[1:])
+        self.P[HIGH] = np.append(self.P[HIGH], P_high[1:])
 
         # Extract the lambdas from the results
         self.lambdas = self.gatekeeping_function(
-            stocks=[P_low, P_medium, P_high],
-            population=P_low + P_medium + P_high,
+            stocks=[
+                P_low, 
+                P_medium, 
+                P_high,
+            ],
+            population=(
+                P_low 
+                + P_medium 
+                + P_high
+            ),
             presenting_proportion=self.presenting_proportion,
             t=t,
         )
