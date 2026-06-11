@@ -1320,3 +1320,41 @@ def get_network(
         reneging_time_distributions=reneging_dists,
     )
     return N
+
+
+def run_des_trial(network, run_time, progress_bar=False):
+    """
+    Run one DES trial and return its raw records.
+
+    Parameters
+    ----------
+    network : ciw.Network
+        Ciw network to simulate.
+    run_time : float
+        Finite, positive maximum simulation time.
+    progress_bar : bool, default=False
+        Whether Ciw displays its progress bar.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Raw records from the completed simulation.
+
+    Raises
+    ------
+    ValueError
+        If ``run_time`` is not finite and greater than zero.
+    """
+    if not np.isfinite(run_time) or run_time <= 0:
+        raise ValueError(
+            "run_time must be a finite number greater than zero, "
+            f"but got {run_time}."
+        )
+
+    Q = ciw.Simulation(network)
+    Q.simulate_until_max_time(
+        max_simulation_time=run_time,
+        progress_bar=progress_bar,
+    )
+
+    return pd.DataFrame(Q.get_all_records())
