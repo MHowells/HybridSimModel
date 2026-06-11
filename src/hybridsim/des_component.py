@@ -1,10 +1,24 @@
+"""
+Construct and run the orthopaedic discrete-event simulation.
+
+This module contains Ciw record customisations, PDFA routing,
+arrival and service distributions, reneging behaviour, and network
+construction utilities.
+"""
+
+import pickle
+from collections import namedtuple
+from math import isinf, nan
+from pathlib import Path
+
 import ciw
 import numpy as np
+import pandas as pd
 from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import connected_components
-from math import isinf, nan
-from collections import namedtuple
 
+
+PRE_OP_VALIDITY_DAYS = 182
 
 DataRecord = namedtuple(
     "Record",
@@ -45,11 +59,17 @@ def custom_write_individual_record(self, individual):
         original_customer_class=individual.original_class,
         node=self.id_number,
         arrival_date=individual.arrival_date,
-        waiting_time=individual.service_start_date - individual.arrival_date,
+        waiting_time=(
+            individual.service_start_date - individual.arrival_date
+        ),
         service_start_date=individual.service_start_date,
-        service_time=individual.service_end_date - individual.service_start_date,
+        service_time=(
+            individual.service_end_date - individual.service_start_date
+        ),
         service_end_date=individual.service_end_date,
-        time_blocked=individual.exit_date - individual.service_end_date,
+        time_blocked=(
+            individual.exit_date - individual.service_end_date
+        ),
         exit_date=individual.exit_date,
         destination=individual.destination,
         queue_size_at_arrival=individual.queue_size_at_arrival,
@@ -74,7 +94,9 @@ def custom_write_incomplete_record(self, individual):
         service_end_date = None
     else:
         service_start_date = individual.service_start_date
-        waiting_time = individual.service_start_date - individual.arrival_date
+        waiting_time = (
+            individual.service_start_date - individual.arrival_date
+        )
         if individual.service_end_date > self.now:  # Still in service
             service_time = None
             service_end_date = None
@@ -104,7 +126,11 @@ def custom_write_incomplete_record(self, individual):
     return record
 
 
-def custom_write_interruption_record(self, individual, destination=nan):
+def custom_write_interruption_record(
+    self, 
+    individual, 
+    destination=nan
+):
     """
     Write a data record for an individual when being interrupted.
     """
@@ -112,13 +138,16 @@ def custom_write_interruption_record(self, individual, destination=nan):
         server_id = False
     else:
         server_id = individual.server.id_number
+
     record = DataRecord(
         id_number=individual.id_number,
         customer_class=individual.previous_class,
         original_customer_class=individual.original_class,
         node=self.id_number,
         arrival_date=individual.arrival_date,
-        waiting_time=individual.service_start_date - individual.arrival_date,
+        waiting_time=(
+            individual.service_start_date - individual.arrival_date
+        ),
         service_start_date=individual.service_start_date,
         service_time=individual.original_service_time,
         service_end_date=nan,
@@ -162,7 +191,11 @@ def custom_write_reneging_record(self, individual):
     individual.data_records.append(record)
 
 
-def custom_write_baulking_or_rejection_record(self, individual, record_type):
+def custom_write_baulking_or_rejection_record(
+    self, 
+    individual, 
+    record_type
+):
     """
     Write a data record for an individual baulks.
     """
@@ -190,11 +223,10 @@ def custom_write_baulking_or_rejection_record(self, individual, record_type):
 
 
 def apply_custom_record_changes():
-    """
-    Apply custom Ciw record functions.
+    """Apply the custom record-writing functions to Ciw nodes.
 
-    This extends the default Ciw records so that the original customer 
-    class and severity level are included.
+    The custom functions extend Ciw's records with the original customer
+    class, severity level, and referral source.
     """
     ciw.node.Node.write_individual_record = custom_write_individual_record
     ciw.node.Node.write_incomplete_record = custom_write_incomplete_record
@@ -207,23 +239,20 @@ def apply_custom_record_changes():
 
 def get_activity_dictionaries(alphabet, start_value=2):
     """
-    Converts a list of activity letters into a dictionaries. One mapping each
-    letter to an integer starting from `start_value`, the other mapping the
-    integers back to the letters.
+    Create forward and reverse mappings for activity letters.
 
     Parameters
     ----------
     alphabet : list
-        List of activity letters (e.g., ['A', 'B', 'C', ...]).
-    start_value : int, optional
-        Starting integer value for mapping (default is 2).
+        Activity letters, such as ``["A", "B", "C"]``.
+    start_value : int, default=2
+        First integer assigned to an activity.
 
     Returns
     -------
-    tuple
-        A tuple containing two dictionaries:
-        - The first dictionary maps each letter to an integer.
-        - The second dictionary maps each integer back to its corresponding letter.
+    tuple[dict, dict]
+        A letter-to-integer mapping and its reverse. Integer 1 is mapped
+        to an empty string in the reverse mapping.
     """
     activity_dict = {
         letter: idx for idx, letter in enumerate(alphabet, start=start_value)
@@ -235,67 +264,85 @@ def get_activity_dictionaries(alphabet, start_value=2):
 
 def get_list_of_nodes(alphabets, subspecialties):
     """
-    Generates a list of all nodes in the DES component by their PDFA letter.
+    Return the network nodes identified by their PDFA letters.
+
     Parameters
     ----------
-    alphabets : list of lists
-        A list containing the alphabets for each subspecialty and severity level.
+    alphabets : list[list]
+        Activity alphabets for the subspecialties and severity levels.
     subspecialties : list
-        A list of subspecialties (strings).
+        Subspecialty names.
+
     Returns
     -------
     list
-        A list of all nodes in the DES component by their PDFA letter.
+        Two referral nodes followed by the activity nodes for each
+        subspecialty.
     """
-    nodes = ["*", "*"] + sorted(set().union(*alphabets)) * len(subspecialties)
-    return nodes
+    activity_nodes = sorted(set().union(*alphabets))
+    return ["*", "*"] + activity_nodes * len(subspecialties)
 
 
 def remove_activity_from_pdfa(pdfa, activity_index, tol=1e-12):
-    """
-    Returns a copy of a PDFA matrix with one activity removed.
+    """Return a PDFA copy with one activity removed.
 
-    This mimics the pre-op filtering logic in PDFARouting:
-    - remove the selected activity;
-    - renormalise remaining outgoing probabilities;
-    - if no transitions remain, leave the row empty so tau probability is 1.
+    The remaining outgoing probabilities are renormalised. If removing
+    the activity leaves no transitions from a state, its row remains
+    empty so that its tau probability is one.
     """
-    adjusted_pdfa = np.array(pdfa, dtype=float, copy=True)
+    adjusted_pdfa = np.array(
+        pdfa,
+        dtype=float,
+        copy=True,
+    )
     n_states = adjusted_pdfa.shape[1]
+
+    # Remove every transition associated with the selected activity.
     adjusted_pdfa[activity_index, :, :] = 0.0
 
+    # Renormalise the remaining transitions from each state.
     for state in range(n_states):
         row_total = adjusted_pdfa[:, state, :].sum()
+
         if row_total > tol:
-            adjusted_pdfa[:, state, :] = adjusted_pdfa[:, state, :] / row_total
+            adjusted_pdfa[:, state, :] /= row_total
 
     return adjusted_pdfa
 
 
 def find_closed_pdfa_states(p_matrix, tol=1e-12):
     """
-    Finds closed recurrent PDFA state groups that have no probability of
-    leaving the pathway.
+    Find closed recurrent state groups with no pathway exit.
     """
     n_states = p_matrix.shape[1]
+
+    # Collapse activities into a state-to-state transition graph.
+    # adjacency[i, j] is true when state i can reach state j.
     adjacency = p_matrix.sum(axis=0) > tol
     graph = csr_matrix(adjacency)
+
     n_components, labels = connected_components(
         graph,
         directed=True,
         connection="strong"
     )
+
     closed_recurrents = []
 
     for component_id in range(n_components):
         group = np.where(labels == component_id)[0]
 
+        # A single-state component is recurrent only with a self-loop.
         if len(group) == 1:
             state = group[0]
             if not adjacency[state, state]:
                 continue
 
-        outside_group = np.setdiff1d(np.arange(n_states), group)
+        outside_group = np.setdiff1d(
+            np.arange(n_states),
+            group,
+        )
+
         if len(outside_group) > 0:
             has_way_out = adjacency[np.ix_(group, outside_group)].any()
         else:
@@ -304,11 +351,11 @@ def find_closed_pdfa_states(p_matrix, tol=1e-12):
         if has_way_out:
             continue
 
+        # Tau is the probability not assigned to outgoing transitions.
         outgoing_probs = p_matrix[:, group, :].sum(axis=(0, 2))
         tau_probs = 1.0 - outgoing_probs
-        has_tau = np.any(tau_probs > tol)
 
-        if has_tau:
+        if np.any(tau_probs > tol):
             continue
 
         closed_recurrents.append(group.tolist())
@@ -316,37 +363,52 @@ def find_closed_pdfa_states(p_matrix, tol=1e-12):
     return closed_recurrents
 
 
-def add_tau_escape_to_states(pdfa, states, tau_prob=0.05):
+def add_tau_escape_to_states(
+    pdfa, 
+    states, 
+    tau_prob=0.05
+):
     """
     Adds an exit probability to selected PDFA states.
     """
-    new_pdfa = np.array(pdfa, dtype=float, copy=True)
+    new_pdfa = np.array(
+        pdfa, 
+        dtype=float, 
+        copy=True
+    )
 
     for state in states:
         outgoing_prob = new_pdfa[:, state, :].sum()
+
         if outgoing_prob > 0:
-            new_pdfa[:, state, :] *= (1.0 - tau_prob) / outgoing_prob
+            new_pdfa[:, state, :] *= (
+                (1.0 - tau_prob) / outgoing_prob
+            )
 
     return new_pdfa
 
 
 class PDFARouting(ciw.routing.NodeRouting):
-    """
-    A class to implement PDFA-based routing in a Ciw discrete-event simulation.
-    This class inherits from `ciw.routing.NodeRouting` and implements the
-    `next_node` method to determine the next node based on a PDFA matrix and
-    an alphabet of activity letters.
+    """Implement PDFA-based routing in a Ciw simulation.
+
+    The routing strategy selects the next activity and PDFA state from
+    the transition probabilities associated with an individual's
+    subspecialty and severity level.
 
     Attributes
     ----------
-    pdfa_matrix : np.ndarray
-        A 3D numpy array representing the PDFA transition probabilities.
-    alphabet : list
-        A list of activity letters corresponding to the PDFA transitions.
+    p_matrices : list[numpy.ndarray]
+        PDFA transition matrices, ordered by subspecialty and severity.
+    alphabets : list[list]
+        Activity alphabets corresponding to ``p_matrices``.
     activity_dict : dict
-        A dictionary mapping activity letters to their corresponding indices.
+        Mapping from activity letters to Ciw node numbers.
     subspec_dict : dict
-        A dictionary mapping subspecialties to their corresponding indices.
+        Mapping from subspecialty names to integer offsets.
+    pre_op_letter : str
+        Activity letter for pre-operative assessment.
+    elective_surgery_letter : str
+        Activity letter for elective surgery.
     """
 
     def __init__(
@@ -359,22 +421,22 @@ class PDFARouting(ciw.routing.NodeRouting):
         elective_surgery_letter,
     ):
         """
-        Initializes the PDFARouting instance with a PDFA matrix, an alphabet,
-        and a dictionary mapping activity letters to their indices.
+        Initialise the PDFA routing strategy.
+
         Parameters
         ----------
-        pdfa_matrix : np.ndarray
-            A 3D numpy array representing the PDFA transition probabilities.
-        alphabet : list
-            A list of activity letters corresponding to the PDFA transitions.
+        pdfa_matrices : list[numpy.ndarray]
+            PDFA transition matrices.
+        alphabets : list[list]
+            Activity alphabets corresponding to the matrices.
         activity_dict : dict
-            A dictionary mapping activity letters to their corresponding indices.
+            Mapping from activity letters to node numbers.
         subspec_dict : dict
-            A dictionary mapping subspecialties to their corresponding indices.
+            Mapping from subspecialties to integer offsets.
         pre_op_letter : str
-            The letter representing the pre-operative assessment activity.
+            Activity letter for pre-operative assessment.
         elective_surgery_letter : str
-            The letter representing the elective surgery activity.
+            Activity letter for elective surgery.
         """
         super().__init__()
         self.p_matrices = pdfa_matrices
@@ -386,16 +448,18 @@ class PDFARouting(ciw.routing.NodeRouting):
 
     def next_node(self, ind):
         """
-        Determines the next node for an individual based on the PDFA transition
-        probabilities and the individual's current route position.
+        Return the next node for an individual.
+
         Parameters
         ----------
         ind : ciw.Individual
-            The individual for whom the next node is to be determined.
+            Individual whose route is being advanced.
+
         Returns
         -------
         ciw.Node
-            The next node in the simulation for the individual.
+            Selected destination node, or the exit node when tau is
+            selected.
         """
         if not hasattr(ind, "level"):
             if ind.original_class == "Low":
@@ -406,7 +470,8 @@ class PDFARouting(ciw.routing.NodeRouting):
                 ind.level = "High"
             else:
                 ind.level = ciw.dists.Pmf(
-                    values=["Low", "Medium", "High"], probs=[0.5, 0.25, 0.25]
+                    values=["Low", "Medium", "High"], 
+                    probs=[0.5, 0.25, 0.25],
                 ).sample()
 
         if not hasattr(ind, "referral_source"):
@@ -423,81 +488,146 @@ class PDFARouting(ciw.routing.NodeRouting):
         if not hasattr(ind, "pre_op"):
             ind.pre_op = False
 
-        if ind.node == self.activity_dict[self.pre_op_letter] + (
-            len(self.activity_dict) * self.subspec_dict[ind.customer_class]
-        ):
+        subspec_index = self.subspec_dict[ind.customer_class]
+        node_offset = len(self.activity_dict) * subspec_index
+
+        pre_op_node = (
+            self.activity_dict[self.pre_op_letter] + node_offset
+        )
+        surgery_node = (
+            self.activity_dict[self.elective_surgery_letter] 
+            + node_offset
+        )
+
+        if ind.node == pre_op_node:
             ind.pre_op = True
 
-        if ind.node == self.activity_dict[self.elective_surgery_letter] + (
-            len(self.activity_dict) * self.subspec_dict[ind.customer_class]
-        ):
+        if ind.node == surgery_node:
             ind.pre_op = False
 
         if ind.level == "Low":
-            p_matrix = self.p_matrices[0 + (3 * self.subspec_dict[ind.customer_class])]
-            alphabet = self.alphabets[0 + (3 * self.subspec_dict[ind.customer_class])]
+            severity_offset = 0
         elif ind.level == "Medium":
-            p_matrix = self.p_matrices[1 + (3 * self.subspec_dict[ind.customer_class])]
-            alphabet = self.alphabets[1 + (3 * self.subspec_dict[ind.customer_class])]
+            severity_offset = 1
         else:
-            p_matrix = self.p_matrices[2 + (3 * self.subspec_dict[ind.customer_class])]
-            alphabet = self.alphabets[2 + (3 * self.subspec_dict[ind.customer_class])]
+            severity_offset = 2
+
+        matrix_index = severity_offset + (3 * subspec_index)
+        p_matrix = self.p_matrices[matrix_index]
+        alphabet = self.alphabets[matrix_index]
 
         leaving_row = ind.route_position
         p_values = []
-        possible_next_state = []
-        possible_next_activity = []
+        possible_next_states = []
+        possible_next_activities = []
 
         for letter in range(len(alphabet)):
-            trans_probs = p_matrix[letter, leaving_row, :]
+            trans_probs = p_matrix[
+                letter, 
+                leaving_row, 
+                :,
+            ]
+
             if trans_probs.sum() > 0:
                 p_values.append(trans_probs.sum())
-                possible_next_state.append(np.where(trans_probs > 0)[0][0])
-                possible_next_activity.append(letter)
+                possible_next_states.append(
+                    np.where(trans_probs > 0)[0][0]
+                )
+                possible_next_activities.append(letter)
 
-        if ind.pre_op and alphabet.index(self.pre_op_letter) in possible_next_activity:
-            combined = list(zip(p_values, possible_next_state, possible_next_activity))
+        pre_op_index = alphabet.index(self.pre_op_letter)
+
+        if (
+            ind.pre_op 
+            and pre_op_index in possible_next_activities
+        ):
+            transitions = list(
+                zip(
+                    p_values, 
+                    possible_next_states, 
+                    possible_next_activities,
+                )
+            )
             filtered = [
-                (p, s, a)
-                for p, s, a in combined
-                if a != alphabet.index(self.pre_op_letter)
+                (probability, state, activity)
+                for probability, state, activity in transitions
+                if activity != alphabet.index(self.pre_op_letter)
             ]
-            if len(filtered) > 0:
-                p_values, possible_next_state, possible_next_activity = zip(*filtered)
-                total = sum(p_values)
-                p_values = [p / total for p in p_values]
-                adjusted_pdfa = remove_activity_from_pdfa(p_matrix, alphabet.index(self.pre_op_letter))
-                closed_states_check = find_closed_pdfa_states(adjusted_pdfa)
-                if len(closed_states_check) > 0:
+
+            if filtered:
+                (
+                    p_values, 
+                    possible_next_states, 
+                    possible_next_activities
+                ) = zip(*filtered)
+
+                total_probability = sum(p_values)
+                p_values = [
+                    probability / total_probability 
+                    for probability in p_values
+                ]
+
+                adjusted_pdfa = remove_activity_from_pdfa(
+                    p_matrix, 
+                    pre_op_index,
+                )
+                closed_states_check = find_closed_pdfa_states(
+                    adjusted_pdfa
+                )
+
+                if closed_states_check:
                     for group in closed_states_check:
-                        adjusted_pdfa = add_tau_escape_to_states(adjusted_pdfa, group)
+                        adjusted_pdfa = add_tau_escape_to_states(
+                            adjusted_pdfa, 
+                            group,
+                        )
+
                     p_values = []
-                    possible_next_state = []
-                    possible_next_activity = []
+                    possible_next_states = []
+                    possible_next_activities = []
+
                     for letter in range(len(alphabet)):
-                        trans_probs = adjusted_pdfa[letter, leaving_row, :]
+                        trans_probs = adjusted_pdfa[
+                            letter, 
+                            leaving_row, 
+                            :,
+                        ]
                         if trans_probs.sum() > 0:
                             p_values.append(trans_probs.sum())
-                            possible_next_state.append(np.where(trans_probs > 0)[0][0])
-                            possible_next_activity.append(letter)
-                possible_next_state = list(possible_next_state)
-                possible_next_activity = list(possible_next_activity)
+                            possible_next_states.append(
+                                np.where(trans_probs > 0)[0][0]
+                            )
+                            possible_next_activities.append(letter)
+
+                possible_next_states = list(
+                    possible_next_states
+                )
+                possible_next_activities = list(
+                    possible_next_activities
+                )
             else:
                 p_values = []
-                possible_next_state = []
-                possible_next_activity = []
+                possible_next_states = []
+                possible_next_activities = []
 
-        if len(p_values) > 0:
+        if p_values:
             final_prob = max(0, 1 - sum(p_values))
         else:
             final_prob = 1
+
         if final_prob > 0:
             p_values.append(final_prob)
-            possible_next_state.append("tau")
-            possible_next_activity.append(-1)
+            possible_next_states.append("tau")
+            possible_next_activities.append(-1)
 
-        next_activity = ciw.rng.choice(a=possible_next_activity, p=p_values)
-        next_state = possible_next_state[possible_next_activity.index(next_activity)]
+        next_activity = ciw.rng.choice(
+            a=possible_next_activities, 
+            p=p_values,
+        )
+        activity_position = possible_next_activities.index(
+            next_activity
+        )
+        next_state = possible_next_states[activity_position]
 
         if next_activity == -1:
             ind.route_position = -1
@@ -505,52 +635,61 @@ class PDFARouting(ciw.routing.NodeRouting):
         else:
             next_node = self.activity_dict[alphabet[next_activity]]
             ind.route_position = next_state
-            return self.simulation.nodes[
-                next_node
-                + (len(self.activity_dict) * self.subspec_dict[ind.customer_class])
-            ]
+
+            return self.simulation.nodes[next_node + node_offset]
 
 
-def get_arrival_distributions(
+def get_arrival_distributions_for_nodes(
     nodes,
     subspecialties,
-    gp_arrival_rates=[None, None, None],
-    other_arrival_rates=[None, None, None],
+    gp_arrival_rates=None,
+    other_arrival_rates=None,
 ):
     """
-    Constructs a dictionary of arrival distributions for each customer class.
+    Construct arrival distributions for every customer class.
+
     Parameters
     ----------
     nodes : list
-        List of node names in the network.
+        Network node names.
     subspecialties : list
-        List of subspecialty names.
+        Subspecialty names.
     gp_arrival_rates : list, optional
-        A list of arrival rates for the GP node for Low, Medium, and High severity
-        levels (default is [None, None, None]).
+        GP arrival distributions for low, medium, and high severity.
     other_arrival_rates : list, optional
-        A list of arrival rates for the other node for Low, Medium, and High severity
-        levels (default is [None, None, None]).
+        Other-referral distributions for low, medium, and high
+        severity.
+
     Returns
     -------
     dict
-        A dictionary mapping each customer class to its list of arrival distributions.
+        Customer classes mapped to node-specific arrival
+        distributions.
     """
+    if gp_arrival_rates is None:
+        gp_arrival_rates = [None, None, None]
+    if other_arrival_rates is None:
+        other_arrival_rates = [None, None, None]
+
     n_nodes = len(nodes)
-    low_arrivals = [gp_arrival_rates[0], other_arrival_rates[0]] + [None] * (
-        n_nodes - 2
-    )
-    medium_arrivals = [gp_arrival_rates[1], other_arrival_rates[1]] + [None] * (
-        n_nodes - 2
-    )
-    high_arrivals = [gp_arrival_rates[2], other_arrival_rates[2]] + [None] * (
-        n_nodes - 2
-    )
+    inactive_nodes = [None] * (n_nodes - 2)
 
     arrival_dict = {
-        "Low": low_arrivals,
-        "Medium": medium_arrivals,
-        "High": high_arrivals,
+        "Low": [
+            gp_arrival_rates[0],
+            other_arrival_rates[0],
+        ]
+        + inactive_nodes.copy(),
+        "Medium": [
+            gp_arrival_rates[1],
+            other_arrival_rates[1],
+        ]
+        + inactive_nodes.copy(),
+        "High": [
+            gp_arrival_rates[2],
+            other_arrival_rates[2],
+        ]
+        + inactive_nodes.copy(),
     }
 
     for subspec in subspecialties:
@@ -559,85 +698,98 @@ def get_arrival_distributions(
     return arrival_dict
 
 
-def get_service_distributions(nodes, subspecialties, subspecialty_services):
+def get_service_distributions_for_nodes(nodes, subspecialties, subspecialty_services):
     """
-    Constructs a dictionary of service time distributions for each customer class.
+    Construct service distributions for every customer class.
+
     Parameters
     ----------
     nodes : list
-        List of node names in the network.
+        Network node names.
     subspecialties : list
-        List of subspecialty names.
-    subspecialty_services : list of lists
-        A list where each element is a list of service time distributions for the
-        corresponding subspecialty.
+        Subspecialty names.
+    subspecialty_services : list[list]
+        Service distributions for the activities in each subspecialty.
+
     Returns
     -------
     dict
-        A dictionary mapping each customer class to its list of service time distributions.
+        Customer classes mapped to node-specific service
+        distributions.
     """
-    low_services = [ciw.dists.Deterministic(value=0) for _ in nodes]
-    medium_services = [ciw.dists.Deterministic(value=0) for _ in nodes]
-    high_services = [ciw.dists.Deterministic(value=0) for _ in nodes]
-
     service_dict = {
-        "Low": low_services,
-        "Medium": medium_services,
-        "High": high_services,
+        severity: [
+            ciw.dists.Deterministic(value=0)
+            for _ in nodes
+        ]
+        for severity in ("Low", "Medium", "High")
     }
 
-    for i, subspec in enumerate(subspecialties):
-        services = [ciw.dists.Deterministic(value=0) for _ in nodes]
-        activities = len(subspecialty_services[i])
-        services[2 + (activities * i) : 2 + activities + (activities * i)] = (
-            subspecialty_services[i]
-        )
+    for index, subspec in enumerate(subspecialties):
+        services = [
+            ciw.dists.Deterministic(value=0) 
+            for _ in nodes
+        ]
+        activities = len(subspecialty_services[index])
+        start = 2 + (activities * index)
+        stop = start + activities
+
+        services[start:stop] = subspecialty_services[index]
         service_dict[subspec] = services
 
     return service_dict
 
 
-def get_servers(nodes, emergency_nodes=[]):
+def get_servers(nodes, emergency_nodes=None):
     """
-    Constructs a list of the number of servers at each node.
+    Return the number of servers assigned to each node.
+
+    Referral and emergency nodes receive infinitely many servers.
+    Every other node receives one server.
+
     Parameters
     ----------
     nodes : list
-        List of node names in the network.
+        Network node names.
     emergency_nodes : list, optional
-        List of nodes that should have infinite servers (default is []). These
-        correspond to the emergency activities in the PDFA alphabet.
+        Activity names that should have infinitely many servers.
+
     Returns
     -------
     list
-        A list containing the number of servers at each node.
+        Number of servers at each node.
     """
+    if emergency_nodes is None:
+        emergency_nodes = []
+
     servers = []
+
     for node in nodes:
-        if node == "*":
-            servers.append(float("inf"))
-        elif node in emergency_nodes:
+        if node == "*" or node in emergency_nodes:
             servers.append(float("inf"))
         else:
             servers.append(1)
+
     return servers
 
 
 def get_routing(nodes, subspecialties, subspecialty_class):
     """
-    Constructs a dictionary of routing strategies for each customer class.
+    Construct routing strategies for every customer class.
+
     Parameters
     ----------
     nodes : list
-        List of node names in the network.
+        Network node names.
     subspecialties : list
-        List of subspecialty names.
+        Subspecialty names.
     subspecialty_class : ciw.routing.NodeRouting
-        A routing strategy for the subspecialty customer classes.
+        Routing strategy used by subspecialty classes.
+
     Returns
     -------
     dict
-        A dictionary mapping each customer class to its routing strategy.
+        Customer classes mapped to network routing strategies.
     """
     low_routes = [ciw.routing.Leave() for _ in nodes]
     medium_routes = [ciw.routing.Leave() for _ in nodes]
@@ -650,38 +802,51 @@ def get_routing(nodes, subspecialties, subspecialty_class):
     }
 
     for subspec in subspecialties:
-        subspec_routes = [subspecialty_class for _ in nodes]
-        routing_dict[subspec] = ciw.routing.NetworkRouting(routers=subspec_routes)
+        subspec_routes = [
+            subspecialty_class 
+            for _ in nodes
+        ]
+        routing_dict[subspec] = ciw.routing.NetworkRouting(
+            routers=subspec_routes
+        )
 
     return routing_dict
 
 
 def get_class_change_matrices(
-    nodes, subspecialties, subspec_probs_low, subspec_probs_medium, subspec_probs_high
+    nodes, 
+    subspecialties, 
+    subspec_probs_low, 
+    subspec_probs_medium, 
+    subspec_probs_high,
 ):
-    """
-    Constructs a list of class change matrices for each node in the network.
+    """Construct the class-change matrix for each network node.
+
     Parameters
     ----------
     nodes : list
-        List of node names in the network.
+        Network node names.
     subspecialties : list
-        List of subspecialty names.
+        Subspecialty names.
     subspec_probs_low : list
-        A list of probabilities for each subspecialty given a Low severity level.
+        Subspecialty probabilities for low-severity arrivals.
     subspec_probs_medium : list
-        A list of probabilities for each subspecialty given a Medium severity level.
+        Subspecialty probabilities for medium-severity arrivals.
     subspec_probs_high : list
-        A list of probabilities for each subspecialty given a High severity level.
+        Subspecialty probabilities for high-severity arrivals.
+
     Returns
     -------
     list
-        A list of class change matrices for each node in the network.
+        Class-change dictionaries for all network nodes.
     """
-    class_mat = []
+    class_matrices = []
 
     def zero_dict():
-        return {key: 0.0 for key in ["Low", "Medium", "High"] + subspecialties}
+        return {
+            key: 0.0 
+            for key in ["Low", "Medium", "High"] + subspecialties
+        }
 
     severity_levels = ["Low", "Medium", "High"]
     severity_probs = {
@@ -690,156 +855,157 @@ def get_class_change_matrices(
         "High": subspec_probs_high,
     }
 
-    dummy = {}
+    referral_class_changes = {}
+
     for level in severity_levels:
         dist = zero_dict()
         for i, spec in enumerate(subspecialties):
             dist[spec] = severity_probs[level][i]
-        dummy[level] = dist
-    for spec in subspecialties:
-        dummy[spec] = {key: float(key == spec) for key in zero_dict()}
-    class_mat.append(dummy)
-    class_mat.append(dummy)
+        referral_class_changes[level] = dist
+
+    for subspec in subspecialties:
+        referral_class_changes[subspec] = {
+            key: float(key == subspec) 
+            for key in zero_dict()
+        }
+
+    class_matrices.append(referral_class_changes)
+    class_matrices.append(referral_class_changes)
 
     identity_node = {
-        key: {k: float(k == key) for k in zero_dict()} for key in zero_dict()
+        key: {
+            k: float(k == key) 
+            for k in zero_dict()
+        } 
+        for key in zero_dict()
     }
-    for _ in range(len(nodes) - 2):
-        class_mat.append(identity_node.copy())
 
-    return class_mat
+    for _ in range(len(nodes) - 2):
+        class_matrices.append(identity_node.copy())
+
+    return class_matrices
 
 
 class PreOpExpiryDist(ciw.dists.Distribution):
-    """
-    A custom distribution to model the reneging time for patients waiting for
-    elective surgery after a pre-operative assessment. The time is calculated
-    based on the time since the last pre-operative assessment and the time of
-    the last scheduled surgery. If the patient has not had a pre-operative
-    assessment, they will not renege.
+    """Model expiry of a pre-operative assessment.
+
+    A patient waiting for elective surgery reneges when their most
+    recent pre-operative assessment reaches its validity limit. A
+    patient without a current pre-operative assessment does not renege.
 
     Attributes
     ----------
     activity_dict : dict
-        A dictionary mapping activity letters to their corresponding indices.
+        Mapping from activity letters to node numbers.
     subspec_dict : dict
-        A dictionary mapping subspecialties to their corresponding indices.
+        Mapping from subspecialties to integer offsets.
     pre_op_letter : str
-        The letter representing the pre-operative assessment activity.
+        Activity letter for pre-operative assessment.
     elective_surgery_letter : str
-        The letter representing the elective surgery activity.
+        Activity letter for elective surgery.
     """
 
     def __init__(
-        self, activity_dict, subspec_dict, pre_op_letter, elective_surgery_letter
+        self, 
+        activity_dict, 
+        subspec_dict, 
+        pre_op_letter, 
+        elective_surgery_letter,
     ):
-        """
-        Initializes the PreOpExpiryDist instance with the activity dictionary,
-        subspecialty dictionary, pre-operative assessment letter, and elective
-        surgery letter.
-        Parameters
-        ----------
-        activity_dict : dict
-            A dictionary mapping activity letters to their corresponding indices.
-        subspec_dict : dict
-            A dictionary mapping subspecialties to their corresponding indices.
-        pre_op_letter : str
-            The letter representing the pre-operative assessment activity.
-        elective_surgery_letter : str
-            The letter representing the elective surgery activity.
-        """
+        """Initialise the pre-operative expiry distribution."""
         self.activity_dict = activity_dict
         self.subspec_dict = subspec_dict
         self.pre_op_letter = pre_op_letter
         self.elective_surgery_letter = elective_surgery_letter
 
     def sample(self, t, ind=None):
-        """
-        Samples the reneging time for an individual based on their history of
-        pre-operative assessments and scheduled surgeries.
+        """Return the remaining validity time for an assessment.
+
         Parameters
         ----------
         t : float
-            The current time in the simulation.
+            Current simulation time.
         ind : ciw.Individual
-            The individual for whom the reneging time is to be calculated.
+            Individual whose history is inspected.
+
         Returns
         -------
         float
-            The reneging time for the individual. If the individual has not had
-            a pre-operative assessment, returns infinity (indicating no reneging).
+            Time until the assessment expires, or infinity when the
+            individual has no current assessment.
         """
-        pre_op_node = self.activity_dict[self.pre_op_letter] + (
-            len(self.activity_dict) * self.subspec_dict[ind.customer_class]
+        subspec_offset = (
+            len(self.activity_dict)
+            * self.subspec_dict[ind.customer_class]
         )
-        surgery_node = self.activity_dict[self.elective_surgery_letter] + (
-            len(self.activity_dict) * self.subspec_dict[ind.customer_class]
+        pre_op_node = (
+            self.activity_dict[self.pre_op_letter]
+            + subspec_offset
         )
+        surgery_node = (
+            self.activity_dict[self.elective_surgery_letter]
+            + subspec_offset
+        )
+
         pre_op_appts = [
-            i.service_end_date for i in ind.data_records if i.node == pre_op_node
+            i.service_end_date 
+            for i in ind.data_records 
+            if i.node == pre_op_node
         ]
         surgical_appts = [
             i.service_end_date
             for i in ind.data_records
-            if i.node in [surgery_node] and str(i.service_end_date) != "nan"
+            if (
+                i.node in [surgery_node] 
+                and str(i.service_end_date) != "nan"
+            )
         ]
+        
         if len(pre_op_appts) > 0:
             last_pre_op = pre_op_appts[-1]
             if len(surgical_appts) > 0:
                 last_surgical_op = surgical_appts[-1]
                 if last_pre_op > last_surgical_op:
-                    return 182 - (t - last_pre_op)
+                    return max(
+                        0.0, 
+                        PRE_OP_VALIDITY_DAYS - (t - last_pre_op)
+                    )
                 else:
                     return float("inf")
             else:
-                return 182 - (t - last_pre_op)
+                return max(
+                    0.0, 
+                    PRE_OP_VALIDITY_DAYS - (t - last_pre_op)
+                )
         else:
             return float("inf")
 
 
 class JockeyRouting(PDFARouting):
     """
-    A subclass of PDFARouting to implement jockeying behaviour in a Ciw
-    discrete-event simulation. This class overrides the `next_node` method to
-    provide custom routing logic for individuals.
-    Attributes
-    ----------
-    pre_op_letter : str
-        The letter representing the pre-operative assessment activity.
+    Extend PDFA routing with support for queue jockeying.
+
+    The inherited :meth:`next_node` method provides normal routing.
+    :meth:`next_node_for_jockeying` sends an individual back to their
+    subspecialty's pre-operative assessment node.
     """
 
     def __init__(
         self,
-        pdfa_matrix,
-        alphabet,
+        pdfa_matrices,
+        alphabets,
         activity_dict,
         subspec_dict,
         pre_op_letter,
         elective_surgery_letter,
     ):
         """
-        Initializes the JockeyRouting instance with a PDFA matrix, an alphabet,
-        an activity dictionary, a subspecialty dictionary, and the pre-operative
-        assessment letter.
-        Parameters
-        ----------
-        pdfa_matrix : np.ndarray
-            A 3D numpy array representing the PDFA transition probabilities.
-        alphabet : list
-            A list of activity letters corresponding to the PDFA transitions.
-        activity_dict : dict
-            A dictionary mapping activity letters to their corresponding indices.
-        subspec_dict : dict
-            A dictionary mapping subspecialties to their corresponding indices.
-        pre_op_letter : str
-            The letter representing the pre-operative assessment activity.
-        elective_surgery_letter : str
-            The letter representing the elective surgery activity.
+        Initializes the JockeyRouting instance.
         """
         self.pre_op_letter = pre_op_letter
         super().__init__(
-            pdfa_matrix,
-            alphabet,
+            pdfa_matrices,
+            alphabets,
             activity_dict,
             subspec_dict,
             pre_op_letter,
@@ -847,47 +1013,61 @@ class JockeyRouting(PDFARouting):
         )
 
     def next_node_for_jockeying(self, ind):
-        """
-        Determines the pre-operative assessment node for an individual.
+        """Return the individual's pre-operative assessment node.
+
         Parameters
         ----------
         ind : ciw.Individual
-            The individual for whom the pre-operative assessment node is to be determined.
+            Individual that is moving between queues.
+
         Returns
         -------
         ciw.Node
-            The pre-operative assessment node in the simulation for the individual.
+            Pre-operative assessment node for the individual's
+            subspecialty.
         """
         pre_op_node = self.activity_dict[self.pre_op_letter] + (
-            len(self.activity_dict) * self.subspec_dict[ind.customer_class]
+            len(self.activity_dict) 
+            * self.subspec_dict[ind.customer_class]
         )
         return self.simulation.nodes[pre_op_node]
 
 
-def get_reneging_time_distributions(nodes, subspecs, RenegingClass):
-    """
-    Constructs a dictionary of reneging time distributions for each customer class.
+def get_reneging_time_distributions(
+    nodes, 
+    subspecs, 
+    reneging_distribution,
+):
+    """Construct reneging distributions for every customer class.
+
     Parameters
     ----------
     nodes : list
-        List of node names in the network.
+        Network node names.
     subspecs : list
-        List of subspecialty names.
-    RenegingClass : ciw.dists.Distribution
-        A custom distribution class for modeling reneging times.
+        Subspecialty names.
+    reneging_distribution : ciw.dists.Distribution
+        Distribution used at activity nodes.
+
     Returns
     -------
     dict
-        A dictionary mapping each customer class to its list of reneging time distributions.
+        Customer classes mapped to node-specific reneging
+        distributions.
     """
-    list_of_reneging_dists = [None, None] + [RenegingClass] * (len(nodes) - 2)
+    reneging_distributions = (
+        [None, None] 
+        + [reneging_distribution] * (len(nodes) - 2)
+    )
     reneging_dict = {
-        "Low": list_of_reneging_dists,
-        "Medium": list_of_reneging_dists,
-        "High": list_of_reneging_dists,
+        "Low": reneging_distributions,
+        "Medium": reneging_distributions,
+        "High": reneging_distributions,
     }
+
     for subspec in subspecs:
-        reneging_dict[subspec] = list_of_reneging_dists
+        reneging_dict[subspec] = reneging_distributions
+
     return reneging_dict
 
 
