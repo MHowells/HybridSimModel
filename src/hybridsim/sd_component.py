@@ -359,52 +359,44 @@ class SD:
         )
 
 
-def get_time_dependent_population_size(population_sizes, durations=np.NaN):
+def get_time_dependent_population_size(
+    population_sizes, 
+    durations=np.NaN
+):
     """
-    Returns a function that provides a time-dependent population size based on
-    custom durations and population sizes.
+    Return a time-dependent population-size function.
 
     Parameters
     ----------
     population_sizes : list of int/float
         A list of population sizes.
-    durations : list of int/float
-        A list of time durations (in days, for example) that each population size lasts.
+    durations : list of int/float, default=np.NaN
+        Duration for which each population size applies. A scalar
+        population and the default duration produce a constant
+        population function.
 
     Returns
     -------
     function
-        A function that takes time t and returns the corresponding population size.
+        Function accepting time ``t`` and returning the corresponding
+        population size.
     """
-    if isinstance(population_sizes, (int, float)):
-        population_sizes = [population_sizes]
-    if isinstance(durations, (int, float)):
-        durations = [durations]
-
-    if len(population_sizes) != len(durations):
-        raise ValueError("The lengths of population_sizes and durations must match.")
-
-    change_points = [0]
-    for d in durations:
-        change_points.append(change_points[-1] + d)
+    population_sizes, durations = normalise_piecewise_inputs(
+        population_sizes,
+        durations,
+        "population_sizes",
+    )
+    change_points = get_change_points(durations)
 
     def population_function(t):
-        """
-        Returns the population size at time t.
+        """Return the population size at time ``t``."""
+        for index, population_size in enumerate(population_sizes):
+            interval_start = change_points[index]
+            interval_end = change_points[index + 1]
 
-        Parameters
-        ----------
-        t : float
-            The time at which to get the population size.
+            if interval_start <= t < interval_end:
+                return population_size
 
-        Returns
-        -------
-        int or float
-            The population size at time t.
-        """
-        for i in range(len(durations)):
-            if change_points[i] <= t < change_points[i + 1]:
-                return population_sizes[i]
         return population_sizes[-1]
 
     return population_function
