@@ -7,6 +7,96 @@ MEDIUM = 1
 HIGH = 2
 PRIORITY_ORDER = [HIGH, MEDIUM, LOW]
 
+
+def validate_initial_state_inputs(
+    initial_unwell_proportion,
+    unwell_splits,
+):
+    """Validate and normalise the initial population proportions.
+
+    Parameters
+    ----------
+    initial_unwell_proportion : float
+        Proportion of the initial population that is unwell.
+    unwell_splits : sequence of three floats
+        Proportions assigned to the low-, medium-, and high-severity
+        stocks.
+
+    Returns
+    -------
+    tuple[float, numpy.ndarray]
+        Validated unwell proportion and severity-stock proportions.
+
+    Raises
+    ------
+    TypeError
+        If either argument cannot be interpreted as numeric data.
+    ValueError
+        If the unwell proportion is outside the interval ``[0, 1]``,
+        or if the severity splits are invalid.
+    """
+    if isinstance(
+        initial_unwell_proportion,
+        (bool, np.bool_),
+    ) or not np.isscalar(initial_unwell_proportion):
+        raise TypeError(
+            "initial_unwell_proportion must be a numeric scalar."
+        )
+
+    try:
+        initial_unwell_proportion = float(
+            initial_unwell_proportion
+        )
+    except (TypeError, ValueError) as error:
+        raise TypeError(
+            "initial_unwell_proportion must be a numeric scalar."
+        ) from error
+
+    if not np.isfinite(initial_unwell_proportion):
+        raise ValueError(
+            "initial_unwell_proportion must be finite."
+        )
+
+    if not 0.0 <= initial_unwell_proportion <= 1.0:
+        raise ValueError(
+            "initial_unwell_proportion must be between 0 and 1 "
+            "inclusive."
+        )
+
+    try:
+        unwell_splits = np.asarray(
+            list(unwell_splits),
+            dtype=float,
+        )
+    except (TypeError, ValueError) as error:
+        raise TypeError(
+            "unwell_splits must be a sequence of three numeric values."
+        ) from error
+
+    if unwell_splits.ndim != 1 or unwell_splits.size != 3:
+        raise ValueError(
+            "unwell_splits must contain exactly three values for the "
+            "low-, medium-, and high-severity stocks."
+        )
+
+    if not np.all(np.isfinite(unwell_splits)):
+        raise ValueError(
+            "Every value in unwell_splits must be finite."
+        )
+
+    if np.any(unwell_splits < 0):
+        raise ValueError(
+            "Every value in unwell_splits must be non-negative."
+        )
+
+    if not np.isclose(unwell_splits.sum(), 1.0):
+        raise ValueError(
+            "The values in unwell_splits must sum to 1. "
+            f"Received a total of {unwell_splits.sum():.12g}."
+        )
+
+    return initial_unwell_proportion, unwell_splits
+
 class SD:
     """
     A class to hold the SD component.
