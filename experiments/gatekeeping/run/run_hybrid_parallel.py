@@ -12,8 +12,7 @@ import numpy as np
 import pandas as pd
 
 from experiment_paths import (
-    THIS_DIR,
-    ROOT_DIR,
+    EXP_DIR,
     SRC_DIR,
     OUTPUT_DIR,
     RECORDS_DIR,
@@ -28,9 +27,16 @@ from experiment_paths import (
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
+# Make the experiment configuration package importable when this file
+# is run directly.
+if str(EXP_DIR) not in sys.path:
+    sys.path.insert(0, str(EXP_DIR))
+
 from hybridsim import sd_component as sd
-from hybridsim import gatekeeping_functions as gk
 from hybridsim import des_component as des
+
+from configs import common
+from configs import weighted_123 as scenario_config
 
 from hybrid_trial_runner import (
     run_one_des_trial_from_config,
@@ -40,35 +46,58 @@ from hybrid_trial_runner import (
 des.apply_custom_record_changes()
 
 
-# Simulation run controls
-run_time = 365 * 5
-time_points = 100000 + 1
-warm_up = 90
-n_trials = 10
-trial_start = 10
-trial_end = trial_start + n_trials
-base_seed = 0
-des_run_time = run_time + warm_up
+# Shared simulation controls.
+run_time = common.RUN_TIME
+time_points = common.TIME_POINTS
+warm_up = common.WARM_UP
 
-severity_levels = ["low", "medium", "high"]
+n_trials = common.N_TRIALS
+trial_start = common.TRIAL_START
+trial_end = common.TRIAL_END
+base_seed = common.BASE_SEED
 
-OVERWRITE_SD_OUTPUT = True
-COMBINE_SUMMARY_FILES = True
+des_run_time = common.DES_RUN_TIME
+severity_levels = common.SEVERITY_LEVELS
 
-# Set to None to choose automatically.
-# For your machine with 8 logical CPUs, this will usually choose 6.
-N_WORKERS = 5
+OVERWRITE_SD_OUTPUT = common.OVERWRITE_SD_OUTPUT
+COMBINE_SUMMARY_FILES = common.COMBINE_SUMMARY_FILES
+N_WORKERS = common.N_WORKERS
 
 
-# ---------------------------------------------------------------------
-# Paths
-# ---------------------------------------------------------------------
+# Shared SD and DES parameters.
+pdfa_dir = common.PDFA_DIR
+sd_params = common.SD_PARAMS
 
-pdfa_dir = (
-    THIS_DIR
-    / "../../../../../OneDrive - Cardiff University/Desktop/PhD/rsch/modelling/pattern-mining/pdfas/subspecs_length_pdfas_expo/selected"
-).resolve()
+subspecs = common.SUBSPECS
+pdfa_subspec_names = common.PDFA_SUBSPEC_NAMES
 
+alphabet = common.ALPHABET
+emergency_nodes = common.EMERGENCY_NODES
+
+pre_op_letter = common.PRE_OP_LETTER
+elective_surgery_letter = common.ELECTIVE_SURGERY_LETTER
+
+subspec_probs = common.SUBSPEC_PROBS
+subspec_probs_low = common.SUBSPEC_PROBS_LOW
+subspec_probs_medium = common.SUBSPEC_PROBS_MEDIUM
+subspec_probs_high = common.SUBSPEC_PROBS_HIGH
+
+service_values = common.SERVICE_VALUES
+weekday_rates = common.WEEKDAY_RATES
+endpoints = common.ENDPOINTS
+
+
+# Scenario-specific parameters.
+deterioration_functions = (
+    scenario_config.DETERIORATION_FUNCTIONS
+)
+
+gatekeeping_policies = (
+    scenario_config.GATEKEEPING_POLICIES
+)
+
+
+# Output paths and directories. These are created if they do not already exist.
 PATIENT_TRIAL_ROOT = (SUMMARY_DIR / "patient_summaries_by_trial")
 COHORT_TRIAL_ROOT = (SUMMARY_DIR / "cohort_summaries_by_trial")
 ACTIVITY_TRIAL_ROOT = (SUMMARY_DIR / "activity_summaries_by_trial")
@@ -144,358 +173,6 @@ def get_output_paths(scenario_title):
             SUMMARY_DIR / f"hybrid_activity_summary_{scenario_title}.csv"
         ),
     }
-
-
-# ---------------------------------------------------------------------
-# SD parameters
-# ---------------------------------------------------------------------
-
-cav_population_2021 = 492315
-wales_prevalence_2021 = 991216.05
-wales_population_2021 = 3152120.06
-wales_population_2022 = 3178152.55
-
-wales_incidence_2022 = 231009.31
-
-cav_population_2022 = 504723
-wales_prevalence_2022 = 1009914.72
-
-initial_population = cav_population_2021
-unwell_proportion = wales_prevalence_2021 / wales_population_2021
-unwell_splits = [1 - 0.0017 - 0.0011, 0.0017, 0.0011]
-
-referral_threshold = 0.005521
-presenting_proportion = ((996392.7 / 365) / (cav_population_2021 * unwell_proportion))
-
-incidence_props = [
-    (wales_incidence_2022 / ((wales_population_2021 + wales_population_2022) / 2)) / 365
-]
-
-cav_prevalence_2021 = cav_population_2021 * (
-    wales_prevalence_2021 / wales_population_2021
-)
-cav_prevalence_2022 = cav_population_2022 * (
-    wales_prevalence_2022 / wales_population_2022
-)
-cav_incidence_2022 = cav_population_2022 * (
-    wales_incidence_2022 / wales_population_2021
-)
-
-recovery = (
-    ((cav_prevalence_2021 + cav_incidence_2022 - cav_prevalence_2022) - 4700)
-    / ((cav_prevalence_2021 + cav_prevalence_2022) / 2)
-) / 365
-
-sd_params = {
-    "initial_population": initial_population,
-    "unwell_proportion": unwell_proportion,
-    "unwell_splits": unwell_splits,
-    "referral_threshold": referral_threshold,
-    "presenting_proportion": presenting_proportion,
-    "incidence_rates": [incidence_props[-1]],
-    "recovery_rates": [recovery],
-    "time_points": time_points,
-    "warmup_lambda_values": [7.5, 4.5, 3.0],
-}
-
-
-# ---------------------------------------------------------------------
-# DES parameters
-# ---------------------------------------------------------------------
-
-subspecs = [
-    "Foot/Ankle",
-    "Hand",
-    "Hip",
-    "Knee",
-    "Paeds",
-    "Shoulder/Elbow",
-    "Spine",
-]
-
-pdfa_subspec_names = [
-    "foot_ankle",
-    "hand",
-    "hip",
-    "knee",
-    "paeds",
-    "shoulder_elbow",
-    "spine",
-]
-
-alphabet = ["A", "B", "C", "D", "E", "F", "G"]
-emergency_nodes = ["B", "E", "G"]
-
-pre_op_letter = "C"
-elective_surgery_letter = "D"
-
-subspec_probs = [
-    0.084806,
-    0.292071,
-    0.045302,
-    0.077262,
-    0.386937,
-    0.043835,
-    0.069787,
-]
-
-subspec_probs_low = subspec_probs.copy()
-subspec_probs_medium = subspec_probs.copy()
-subspec_probs_high = subspec_probs.copy()
-
-service_values = [
-    [
-        365 / 1220,
-        0,
-        365 / 585,
-        365 / 458.9,
-        0,
-        365 / 1280,
-        0,
-    ],
-    [
-        365 / 1277,
-        0,
-        365 / 1397,
-        365 / 923.4,
-        0,
-        365 / 1636,
-        0,
-    ],
-    [
-        365 / 1699.075,
-        0,
-        365 / 1135.4875,
-        365 / 641.3,
-        0,
-        365 / 1758.9,
-        0,
-    ],
-    [
-        365 / 1366.575,
-        0,
-        365 / 882.7875,
-        365 / 1225.5,
-        0,
-        365 / 1157.1,
-        0,
-    ],
-    [
-        365 / 1024,
-        0,
-        365 / 140,
-        365 / 427.5,
-        0,
-        365 / 2873,
-        0,
-    ],
-    [
-        365 / 1097,
-        0,
-        365 / 438.9,
-        365 / 259.4,
-        0,
-        365 / 758.1,
-        0,
-    ],
-    [
-        365 / 2081,
-        0,
-        365 / 692,
-        365 / 669.8,
-        0,
-        365 / 3092,
-        0,
-    ],
-]
-
-weekday_rates = [
-    80.981752,
-    69.324818,
-    71.529197,
-    59.930657,
-    53.802198,
-    8.926740,
-    10.186813,
-]
-
-endpoints = [1, 2, 3, 4, 5, 6, 7]
-
-
-# ---------------------------------------------------------------------
-# Scenario definitions
-# ---------------------------------------------------------------------
-
-deterioration_functions = {
-    "shift_0_025": sd.get_deterioration_rates(
-        category_widths=(0.5, 0.3, 0.2),
-        shift_proportion=0.025,
-        shift_interval_days=182.5,
-    ),
-}
-
-gatekeeping_policies = {
-    "plus100pct": {
-        "scenario_title": "weighted_123",
-        "function": gk.weighted_priority_gatekeeping(
-            threshold=sd_params["referral_threshold"] * 2.00,
-            weights=np.array([1, 2, 3], dtype=float),
-        ),
-        "unwell_splits": [0.69767442, 0.20930233, 0.09302326],
-    },
-    "plus90pct": {
-        "scenario_title": "weighted_123",
-        "function": gk.weighted_priority_gatekeeping(
-            threshold=sd_params["referral_threshold"] * 1.90,
-            weights=np.array([1, 2, 3], dtype=float),
-        ),
-        "unwell_splits": [0.69767442, 0.20930233, 0.09302326],
-    },
-    "plus80pct": {
-        "scenario_title": "weighted_123",
-        "function": gk.weighted_priority_gatekeeping(
-            threshold=sd_params["referral_threshold"] * 1.80,
-            weights=np.array([1, 2, 3], dtype=float),
-        ),
-        "unwell_splits": [0.69767442, 0.20930233, 0.09302326],
-    },
-    "plus70pct": {
-        "scenario_title": "weighted_123",
-        "function": gk.weighted_priority_gatekeeping(
-            threshold=sd_params["referral_threshold"] * 1.70,
-            weights=np.array([1, 2, 3], dtype=float),
-        ),
-        "unwell_splits": [0.69767442, 0.20930233, 0.09302326],
-    },
-    "plus60pct": {
-        "scenario_title": "weighted_123",
-        "function": gk.weighted_priority_gatekeeping(
-            threshold=sd_params["referral_threshold"] * 1.60,
-            weights=np.array([1, 2, 3], dtype=float),
-        ),
-        "unwell_splits": [0.69767442, 0.20930233, 0.09302326],
-    },
-    "plus50pct": {
-        "scenario_title": "weighted_123",
-        "function": gk.weighted_priority_gatekeeping(
-            threshold=sd_params["referral_threshold"] * 1.50,
-            weights=np.array([1, 2, 3], dtype=float),
-        ),
-        "unwell_splits": [0.69767442, 0.20930233, 0.09302326],
-    },
-    "plus40pct": {
-        "scenario_title": "weighted_123",
-        "function": gk.weighted_priority_gatekeeping(
-            threshold=sd_params["referral_threshold"] * 1.40,
-            weights=np.array([1, 2, 3], dtype=float),
-        ),
-        "unwell_splits": [0.69767442, 0.20930233, 0.09302326],
-    },
-    "plus30pct": {
-        "scenario_title": "weighted_123",
-        "function": gk.weighted_priority_gatekeeping(
-            threshold=sd_params["referral_threshold"] * 1.30,
-            weights=np.array([1, 2, 3], dtype=float),
-        ),
-        "unwell_splits": [0.69767442, 0.20930233, 0.09302326],
-    },
-    "plus20pct": {
-        "scenario_title": "weighted_123",
-        "function": gk.weighted_priority_gatekeeping(
-            threshold=sd_params["referral_threshold"] * 1.20,
-            weights=np.array([1, 2, 3], dtype=float),
-        ),
-        "unwell_splits": [0.69767442, 0.20930233, 0.09302326],
-    },
-    "plus10pct": {
-        "scenario_title": "weighted_123",
-        "function": gk.weighted_priority_gatekeeping(
-            threshold=sd_params["referral_threshold"] * 1.10,
-            weights=np.array([1, 2, 3], dtype=float),
-        ),
-        "unwell_splits": [0.69767442, 0.20930233, 0.09302326],
-    },
-    "baseline": {
-        "scenario_title": "weighted_123",
-        "function": gk.weighted_priority_gatekeeping(
-            threshold=sd_params["referral_threshold"],
-            weights=np.array([1, 2, 3], dtype=float),
-        ),
-        "unwell_splits": [0.69767442, 0.20930233, 0.09302326],
-    },
-    "minus10pct": {
-        "scenario_title": "weighted_123",
-        "function": gk.weighted_priority_gatekeeping(
-            threshold=sd_params["referral_threshold"] * 0.90,
-            weights=np.array([1, 2, 3], dtype=float),
-        ),
-        "unwell_splits": [0.69767442, 0.20930233, 0.09302326],
-    },
-    "minus20pct": {
-        "scenario_title": "weighted_123",
-        "function": gk.weighted_priority_gatekeeping(
-            threshold=sd_params["referral_threshold"] * 0.80,
-            weights=np.array([1, 2, 3], dtype=float),
-        ),
-        "unwell_splits": [0.69767442, 0.20930233, 0.09302326],
-    },
-    "minus30pct": {
-        "scenario_title": "weighted_123",
-        "function": gk.weighted_priority_gatekeeping(
-            threshold=sd_params["referral_threshold"] * 0.70,
-            weights=np.array([1, 2, 3], dtype=float),
-        ),
-        "unwell_splits": [0.69767442, 0.20930233, 0.09302326],
-    },
-    "minus40pct": {
-        "scenario_title": "weighted_123",
-        "function": gk.weighted_priority_gatekeeping(
-            threshold=sd_params["referral_threshold"] * 0.60,
-            weights=np.array([1, 2, 3], dtype=float),
-        ),
-        "unwell_splits": [0.69767442, 0.20930233, 0.09302326],
-    },
-    "minus50pct": {
-        "scenario_title": "weighted_123",
-        "function": gk.weighted_priority_gatekeeping(
-            threshold=sd_params["referral_threshold"] * 0.50,
-            weights=np.array([1, 2, 3], dtype=float),
-        ),
-        "unwell_splits": [0.69767442, 0.20930233, 0.09302326],
-    },
-    "minus60pct": {
-        "scenario_title": "weighted_123",
-        "function": gk.weighted_priority_gatekeeping(
-            threshold=sd_params["referral_threshold"] * 0.40,
-            weights=np.array([1, 2, 3], dtype=float),
-        ),
-        "unwell_splits": [0.69767442, 0.20930233, 0.09302326],
-    },
-    "minus70pct": {
-        "scenario_title": "weighted_123",
-        "function": gk.weighted_priority_gatekeeping(
-            threshold=sd_params["referral_threshold"] * 0.30,
-            weights=np.array([1, 2, 3], dtype=float),
-        ),
-        "unwell_splits": [0.69767442, 0.20930233, 0.09302326],
-    },
-    "minus80pct": {
-        "scenario_title": "weighted_123",
-        "function": gk.weighted_priority_gatekeeping(
-            threshold=sd_params["referral_threshold"] * 0.20,
-            weights=np.array([1, 2, 3], dtype=float),
-        ),
-        "unwell_splits": [0.69767442, 0.20930233, 0.09302326],
-    },
-    "minus90pct": {
-        "scenario_title": "weighted_123",
-        "function": gk.weighted_priority_gatekeeping(
-            threshold=sd_params["referral_threshold"] * 0.10,
-            weights=np.array([1, 2, 3], dtype=float),
-        ),
-        "unwell_splits": [0.69767442, 0.20930233, 0.09302326],
-    },
-}
 
 
 def run_sd_scenario(
