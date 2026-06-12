@@ -597,28 +597,28 @@ def get_cohort_summary(patient_df):
                 "severity",
                 "referral_source",
             ],
-            "Subspecialty × severity × referral source",
+            "Subspecialty x severity x referral source",
         ),
         summarise(
             [
                 "subspecialty", 
                 "severity",
             ],
-            "Subspecialty × severity",
+            "Subspecialty x severity",
         ),
         summarise(
             [
                 "subspecialty", 
                 "referral_source",
             ],
-            "Subspecialty × referral source",
+            "Subspecialty x referral source",
         ),
         summarise(
             [
                 "severity", 
                 "referral_source",
             ],
-            "Severity × referral source",
+            "Severity x referral source",
         ),
         summarise(
             ["subspecialty"],
