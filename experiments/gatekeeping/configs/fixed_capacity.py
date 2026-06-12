@@ -1,9 +1,7 @@
 """Configuration for the weighted 1:2:3 gatekeeping scenarios."""
 
-import numpy as np
-
-import gatekeeping_functions as gk
-import sd_component as sd
+from hybridsim import gatekeeping_functions as gk
+from hybridsim import sd_component as sd
 
 from configs.common import SD_PARAMS
 
