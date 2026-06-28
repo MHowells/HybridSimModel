@@ -20,6 +20,7 @@ def assert_referral_flows_are_feasible(
 
 
 # Tests for valid gatekeeping referral and capacity constraints
+# -------------------------------------------------------------
 
 @pytest.mark.parametrize(
     "gatekeeping",
