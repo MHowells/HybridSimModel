@@ -1,8 +1,6 @@
 import ciw
 import numpy as np
 import pytest
-import unittest
-from collections import Counter
 import hybridsim.des_component as des
 
 
@@ -77,12 +75,12 @@ def make_pdfa_routing_for_severity_and_subspecialty_tests():
     }
 
     subspec_dict = {
-        "Foot": 0,
+        "Hip": 0,
         "Knee": 1,
     }
 
     pdfa_matrices = [
-        # Foot: Low, Medium, High
+        # Hip: Low, Medium, High
         make_deterministic_pdfa(alphabet, "A"),
         make_deterministic_pdfa(alphabet, "B"),
         make_deterministic_pdfa(alphabet, "C"),
@@ -123,6 +121,9 @@ def make_routing_test_simulation():
     return ciw.Simulation(network)
 
 
+# PDFA routing tests
+# ------------------
+
 @pytest.mark.parametrize(
     "customer_class, level, expected_node_id, expected_route_position",
     [
@@ -155,75 +156,166 @@ def test_pdfa_routing_selects_correct_activity_for_subspecialty_and_severity(
     assert next_node.id_number == expected_node_id
     assert ind.route_position == expected_route_position
 
-class TestPDFARouting(unittest.TestCase):
-    def make_test_individual(self):
-        ind = ciw.Individual(1)
-        ind.original_class = "Low"
-        ind.customer_class = "TestSubspec"
-        ind.level = "Low"
-        ind.node = 1
-        ind.route_position = 1
-        ind.pre_op = False
-        return ind
-    
-    def test_transition(self):
-        alphabet = ["A", "B", "C", "D"]
 
-        pdfa_matrix = np.zeros((len(alphabet), 3, 3))
-        pdfa_matrix[0, 1, 2] = 1.0
-        pdfa_matrix[1, 2, 1] = 1.0
-        p_matrices = [pdfa_matrix, pdfa_matrix, pdfa_matrix]
-        alphabets = [alphabet, alphabet, alphabet]
-        activity_dictionary = {
-            "A": 2,
-            "B": 3,
-            "C": 4,
-            "D": 5,
-        }
-        subspec_dictionary = {"TestSubspec": 0}
+def test_pdfa_routing_sends_patient_to_exit_when_current_state_has_no_outgoing_transitions():
+    alphabet = ["A", "B", "C"]
+    activity_dict = {
+        "A": 2,
+        "B": 3,
+        "C": 4,
+    }
+    subspec_dict = {
+        "Hip": 0,
+    }
 
-        R = des.PDFARouting(
-            p_matrices,
-            alphabets,
-            activity_dictionary,
-            subspec_dictionary,
-            pre_op_letter="C",
-            elective_surgery_letter="D",
-        )
+    pdfa = np.zeros((len(alphabet), 3, 3))
 
-        ciw.seed(0)
-        Q = ciw.Simulation(N)
-        R.initialise(Q, 1)
-        ind = self.make_test_individual()
-        samples = Counter(
-            [r.id_number for r in [R.next_node(ind) for _ in range(100)]]
-        )
-        self.assertEqual([samples[i] for i in range(1, 4)], [0, 50, 50])
+    routing = des.PDFARouting(
+        pdfa_matrices=[pdfa, pdfa, pdfa],
+        alphabets=[alphabet, alphabet, alphabet],
+        activity_dict=activity_dict,
+        subspec_dict=subspec_dict,
+        pre_op_letter="B",
+        elective_surgery_letter="C",
+    )
 
-    def test_endpoint_transition(self):
-        alphabet = ["A", "C", "D"]
-        pdfa_matrix = np.zeros((len(alphabet), 3, 3))
-        p_matrices = [pdfa_matrix, pdfa_matrix, pdfa_matrix]
-        alphabets = [alphabet, alphabet, alphabet]
-        activity_dictionary = {
-            "A": 2,
-            "C": 3,
-            "D": 4,
-        }
-        subspec_dictionary = {"TestSubspec": 0}
+    simulation = make_routing_test_simulation()
+    routing.initialise(simulation, 1)
 
-        R = des.PDFARouting(
-            p_matrices,
-            alphabets,
-            activity_dictionary,
-            subspec_dictionary,
-            pre_op_letter="C",
-            elective_surgery_letter="D",
-        )
+    ind = make_routing_test_individual(
+        customer_class="Hip",
+        level="Low",
+        route_position=1,
+    )
 
-        ciw.seed(0)
-        Q = ciw.Simulation(N)
-        R.initialise(Q, 1)
-        ind = self.make_test_individual()
-        samples = [r.id_number for r in [R.next_node(ind) for _ in range(100)]]
-        self.assertTrue(all(r == -1 for r in samples))
+    next_node = routing.next_node(ind)
+
+    assert next_node.id_number == -1
+    assert ind.route_position == -1
+
+
+# Pre-operative expiry and routing tests
+# --------------------------------------
+
+def test_pdfa_routing_sets_pre_op_flag_after_pre_op_assessment():
+    alphabet = ["A", "B", "C"]
+    activity_dict = {
+        "A": 2,
+        "B": 3,
+        "C": 4,
+    }
+    subspec_dict = {
+        "Hip": 0,
+    }
+
+    pdfa = make_deterministic_pdfa(
+        alphabet=alphabet,
+        activity_letter="A",
+    )
+
+    routing = des.PDFARouting(
+        pdfa_matrices=[pdfa, pdfa, pdfa],
+        alphabets=[alphabet, alphabet, alphabet],
+        activity_dict=activity_dict,
+        subspec_dict=subspec_dict,
+        pre_op_letter="B",
+        elective_surgery_letter="C",
+    )
+
+    simulation = make_routing_test_simulation()
+    routing.initialise(simulation, 1)
+
+    ind = make_routing_test_individual(
+        customer_class="Hip",
+        level="Low",
+        node=activity_dict["B"],
+        route_position=1,
+    )
+
+    routing.next_node(ind)
+
+    assert ind.pre_op is True
+
+
+def test_pdfa_routing_prevents_repeat_pre_op_assessment_when_alternative_route_exists():
+    alphabet = ["A", "B", "C"]
+    activity_dict = {
+        "A": 2,
+        "B": 3,
+        "C": 4,
+    }
+    subspec_dict = {
+        "Hip": 0,
+    }
+
+    pdfa = np.zeros((len(alphabet), 3, 3))
+    pdfa[alphabet.index("A"), 1, 2] = 0.5
+    pdfa[alphabet.index("B"), 1, 2] = 0.5
+
+    routing = des.PDFARouting(
+        pdfa_matrices=[pdfa, pdfa, pdfa],
+        alphabets=[alphabet, alphabet, alphabet],
+        activity_dict=activity_dict,
+        subspec_dict=subspec_dict,
+        pre_op_letter="B",
+        elective_surgery_letter="C",
+    )
+
+    simulation = make_routing_test_simulation()
+    routing.initialise(simulation, 1)
+
+    ind = make_routing_test_individual(
+        customer_class="Hip",
+        level="Low",
+        node=activity_dict["B"],
+        route_position=1,
+    )
+
+    next_node = routing.next_node(ind)
+
+    assert ind.pre_op is True
+    assert next_node.id_number == activity_dict["A"]
+    assert ind.route_position == 2
+
+
+def test_pdfa_routing_resets_pre_op_flag_after_elective_surgery():
+    alphabet = ["A", "B", "C"]
+    activity_dict = {
+        "A": 2,
+        "B": 3,
+        "C": 4,
+    }
+    subspec_dict = {
+        "Hip": 0,
+    }
+
+    pdfa = make_deterministic_pdfa(
+        alphabet=alphabet,
+        activity_letter="A",
+    )
+
+    routing = des.PDFARouting(
+        pdfa_matrices=[pdfa, pdfa, pdfa],
+        alphabets=[alphabet, alphabet, alphabet],
+        activity_dict=activity_dict,
+        subspec_dict=subspec_dict,
+        pre_op_letter="B",
+        elective_surgery_letter="C",
+    )
+
+    simulation = make_routing_test_simulation()
+    routing.initialise(simulation, 1)
+
+    ind = make_routing_test_individual(
+        customer_class="Hip",
+        level="Low",
+        node=activity_dict["C"],
+        route_position=1,
+    )
+    ind.pre_op = True
+
+    routing.next_node(ind)
+
+    assert ind.pre_op is False
+
+
