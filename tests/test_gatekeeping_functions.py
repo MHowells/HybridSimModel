@@ -19,6 +19,8 @@ def assert_referral_flows_are_feasible(
     assert np.all(obtained <= demand + 1e-12)
 
 
+# Tests for valid gatekeeping referral and capacity constraints
+
 @pytest.mark.parametrize(
     "gatekeeping",
     [
