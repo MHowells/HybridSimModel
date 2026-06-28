@@ -3,6 +3,132 @@ import pytest
 import hybridsim.gatekeeping_functions as gf
 
 
+# Helper function
+# ---------------
+
+def assert_referral_flows_are_feasible(
+    obtained,
+    stocks,
+    presenting_proportion,
+):
+    obtained = np.asarray(obtained, dtype=float)
+    stocks = np.asarray(stocks, dtype=float)
+    demand = presenting_proportion * stocks
+
+    assert np.all(obtained >= 0.0)
+    assert np.all(obtained <= demand + 1e-12)
+
+
+@pytest.mark.parametrize(
+    "gatekeeping",
+    [
+        gf.strict_priority_gatekeeping(threshold=0.5),
+        gf.fixed_capacity_strict_gatekeeping(capacity=15.0),
+        gf.fixed_capacity_proportional_gatekeeping(capacity=15.0),
+        gf.weighted_priority_gatekeeping(
+            threshold=0.5,
+            weights=(1.0, 2.0, 5.0),
+        ),
+        gf.seasonal_capacity_gatekeeping(
+            baseline=10.0,
+            amplitude=2.0,
+            period=365.0,
+            phase_shift=0.0,
+        ),
+        gf.equal_access_proportion_gatekeeping(access_proportion=0.5),
+        gf.severity_specific_access_gatekeeping(
+            proportions=(0.1, 0.3, 0.5),
+        ),
+        gf.split_capacity_priority_gatekeeping(
+            capacity=15.0,
+            priority_relaxation=0.5,
+        ),
+        gf.severity_responsive_gatekeeping(
+            severity_threshold=0.3,
+            low_severity_capacity=10.0,
+            high_severity_capacity=20.0,
+        ),
+    ],
+)
+def test_gatekeeping_policies_return_non_negative_referrals_not_exceeding_demand(
+    gatekeeping,
+):
+    stocks = np.array([50.0, 30.0, 20.0])
+    presenting_proportion = 0.4
+
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    assert_referral_flows_are_feasible(
+        obtained=obtained,
+        stocks=stocks,
+        presenting_proportion=presenting_proportion,
+    )
+
+
+@pytest.mark.parametrize(
+    "gatekeeping, maximum_capacity",
+    [
+        (gf.strict_priority_gatekeeping(threshold=0.5), 20.0),
+        (gf.fixed_capacity_strict_gatekeeping(capacity=15.0), 15.0),
+        (gf.fixed_capacity_proportional_gatekeeping(capacity=15.0), 15.0),
+        (
+            gf.weighted_priority_gatekeeping(
+                threshold=0.5,
+                weights=(1.0, 2.0, 5.0),
+            ),
+            20.0,
+        ),
+        (
+            gf.seasonal_capacity_gatekeeping(
+                baseline=10.0,
+                amplitude=0.0,
+                period=365.0,
+                phase_shift=0.0,
+            ),
+            10.0,
+        ),
+        (
+            gf.split_capacity_priority_gatekeeping(
+                capacity=15.0,
+                priority_relaxation=0.5,
+            ),
+            15.0,
+        ),
+        (
+            gf.severity_responsive_gatekeeping(
+                severity_threshold=0.3,
+                low_severity_capacity=10.0,
+                high_severity_capacity=20.0,
+            ),
+            20.0,
+        ),
+    ],
+)
+def test_capacity_constrained_gatekeeping_policies_do_not_exceed_capacity(
+    gatekeeping,
+    maximum_capacity,
+):
+    stocks = np.array([50.0, 30.0, 20.0])
+    presenting_proportion = 0.4
+
+    obtained = gatekeeping(
+        stocks=stocks,
+        population=stocks.sum(),
+        presenting_proportion=presenting_proportion,
+        t=0.0,
+    )
+
+    assert obtained.sum() <= maximum_capacity + 1e-12
+
+
+# Strict-priority gatekeeping tests
+# ---------------------------------
+
 def test_strict_priority_gatekeeping_returns_callable():
     gatekeeping = gf.strict_priority_gatekeeping(threshold=0.5)
     assert callable(gatekeeping)
@@ -171,6 +297,9 @@ def test_strict_priority_gatekeeping_raises_for_invalid_dimension():
             t=0.0,
         )
 
+
+# Fixed-capacity strict gatekeeping tests
+# ---------------------------------------
 
 def test_fixed_capacity_strict_gatekeeping_returns_callable():
     gatekeeping = gf.fixed_capacity_strict_gatekeeping(capacity=15.0)
@@ -342,6 +471,9 @@ def test_fixed_capacity_strict_gatekeeping_raises_for_invalid_dimension():
         )
 
 
+# Fixed-capacity proportional gatekeeping tests
+# ---------------------------------------------
+
 def test_fixed_capacity_proportional_gatekeeping_returns_callable():
     gatekeeping = gf.fixed_capacity_proportional_gatekeeping(capacity=15.0)
     assert callable(gatekeeping)
@@ -506,6 +638,9 @@ def test_fixed_capacity_proportional_gatekeeping_raises_for_invalid_dimension():
             t=0.0,
         )
 
+
+# Weighted-priority gatekeeping tests
+# -----------------------------------
 
 def test_weighted_priority_gatekeeping_scalar_returns_expected_values():
     stocks = np.array([50.0, 30.0, 20.0])
@@ -733,6 +868,9 @@ def test_weighted_priority_gatekeeping_raises_value_error_for_invalid_stock_dime
             t=0.0,
         )
 
+
+# Seasonal-capacity gatekeeping tests
+# -----------------------------------
 
 def test_seasonal_capacity_gatekeeping_returns_callable():
     gatekeeping = gf.seasonal_capacity_gatekeeping(
@@ -1023,6 +1161,9 @@ def test_seasonal_capacity_gatekeeping_raises_for_invalid_dimension():
         )
 
 
+# Equal-access-proportion gatekeeping tests
+# -----------------------------------------
+
 def test_equal_access_proportion_gatekeeping_returns_callable():
     gatekeeping = gf.equal_access_proportion_gatekeeping(access_proportion=0.5)
     assert callable(gatekeeping)
@@ -1142,6 +1283,9 @@ def test_equal_access_proportion_gatekeeping_raises_for_invalid_dimension():
         )
 
 
+# Severity-specific access gatekeeping tests
+# ------------------------------------------
+
 def test_severity_specific_access_gatekeeping_returns_callable():
     gatekeeping = gf.severity_specific_access_gatekeeping(proportions=[0.1, 0.3, 0.5])
     assert callable(gatekeeping)
@@ -1260,6 +1404,9 @@ def test_severity_specific_access_gatekeeping_raises_for_invalid_dimension():
             t=0.0,
         )
 
+
+# Split-capacity-priority gatekeeping tests
+# -----------------------------------------
 
 def test_split_capacity_priority_gatekeeping_returns_callable():
     gatekeeping = gf.split_capacity_priority_gatekeeping(
@@ -1408,23 +1555,6 @@ def test_split_capacity_priority_gatekeeping_time_series_case():
     np.testing.assert_allclose(obtained, expected)
 
 
-def test_split_capacity_priority_gatekeeping_raises_for_invalid_dimension():
-    gatekeeping = gf.split_capacity_priority_gatekeeping(
-        capacity=15.0, priority_relaxation=0.5
-    )
-    stocks = np.zeros((3, 2, 2))
-
-    with pytest.raises(
-        ValueError, match="stocks must be a 1D or 2D array-like structure."
-    ):
-        gatekeeping(
-            stocks=stocks,
-            population=1.0,
-            presenting_proportion=0.4,
-            t=0.0,
-        )
-
-
 def test_split_capacity_priority_gatekeeping_zero_relaxation_matches_fixed_capacity_strict():
     stocks = np.array([50.0, 30.0, 20.0])
     presenting_proportion = 0.4
@@ -1508,6 +1638,26 @@ def test_split_capacity_priority_gatekeeping_time_series_zero_demand_branch():
 
     np.testing.assert_allclose(obtained, expected)
 
+
+def test_split_capacity_priority_gatekeeping_raises_for_invalid_dimension():
+    gatekeeping = gf.split_capacity_priority_gatekeeping(
+        capacity=15.0, priority_relaxation=0.5
+    )
+    stocks = np.zeros((3, 2, 2))
+
+    with pytest.raises(
+        ValueError, match="stocks must be a 1D or 2D array-like structure."
+    ):
+        gatekeeping(
+            stocks=stocks,
+            population=1.0,
+            presenting_proportion=0.4,
+            t=0.0,
+        )
+
+
+# Severity-responsive gatekeeping tests
+# -------------------------------------
 
 def test_severity_responsive_gatekeeping_returns_callable():
     gatekeeping = gf.severity_responsive_gatekeeping(
@@ -1776,6 +1926,17 @@ def test_severity_responsive_gatekeeping_time_series_zero_demand_continue_branch
     np.testing.assert_allclose(obtained, expected)
 
 
+def test_time_phased_gatekeeping_returns_callable():
+    gatekeeping = gf.time_phased_gatekeeping(
+        change_times=[10.0],
+        gatekeeping_policies=[
+            gf.fixed_capacity_strict_gatekeeping(capacity=15.0),
+            gf.fixed_capacity_proportional_gatekeeping(capacity=15.0),
+        ],
+    )
+    assert callable(gatekeeping)
+
+
 def test_severity_responsive_gatekeeping_raises_for_invalid_dimension():
     gatekeeping = gf.severity_responsive_gatekeeping(
         severity_threshold=0.3,
@@ -1795,45 +1956,8 @@ def test_severity_responsive_gatekeeping_raises_for_invalid_dimension():
         )
 
 
-def test_time_phased_gatekeeping_returns_callable():
-    gatekeeping = gf.time_phased_gatekeeping(
-        change_times=[10.0],
-        gatekeeping_policies=[
-            gf.fixed_capacity_strict_gatekeeping(capacity=15.0),
-            gf.fixed_capacity_proportional_gatekeeping(capacity=15.0),
-        ],
-    )
-    assert callable(gatekeeping)
-
-
-def test_time_phased_gatekeeping_raises_for_wrong_number_of_policies():
-    with pytest.raises(
-        ValueError,
-        match="There must be exactly one more gatekeeping policy than change times.",
-    ):
-        gf.time_phased_gatekeeping(
-            change_times=[10.0, 20.0],
-            gatekeeping_policies=[
-                gf.fixed_capacity_strict_gatekeeping(capacity=15.0),
-                gf.fixed_capacity_proportional_gatekeeping(capacity=15.0),
-            ],
-        )
-
-
-def test_time_phased_gatekeeping_raises_for_unsorted_change_times():
-    with pytest.raises(
-        ValueError,
-        match="change_times must be sorted in non-decreasing order.",
-    ):
-        gf.time_phased_gatekeeping(
-            change_times=[20.0, 10.0],
-            gatekeeping_policies=[
-                gf.fixed_capacity_strict_gatekeeping(capacity=15.0),
-                gf.fixed_capacity_proportional_gatekeeping(capacity=15.0),
-                gf.equal_access_proportion_gatekeeping(access_proportion=0.5),
-            ],
-        )
-
+# Time-phased gatekeeping tests
+# -----------------------------
 
 def test_time_phased_gatekeeping_scalar_before_first_change_uses_first_policy():
     stocks = np.array([50.0, 30.0, 20.0])
@@ -2062,6 +2186,35 @@ def test_time_phased_gatekeeping_single_policy_no_changes_matches_base_policy():
     )
 
     np.testing.assert_allclose(obtained_wrapped, obtained_base)
+
+
+def test_time_phased_gatekeeping_raises_for_wrong_number_of_policies():
+    with pytest.raises(
+        ValueError,
+        match="There must be exactly one more gatekeeping policy than change times.",
+    ):
+        gf.time_phased_gatekeeping(
+            change_times=[10.0, 20.0],
+            gatekeeping_policies=[
+                gf.fixed_capacity_strict_gatekeeping(capacity=15.0),
+                gf.fixed_capacity_proportional_gatekeeping(capacity=15.0),
+            ],
+        )
+
+
+def test_time_phased_gatekeeping_raises_for_unsorted_change_times():
+    with pytest.raises(
+        ValueError,
+        match="change_times must be sorted in non-decreasing order.",
+    ):
+        gf.time_phased_gatekeeping(
+            change_times=[20.0, 10.0],
+            gatekeeping_policies=[
+                gf.fixed_capacity_strict_gatekeeping(capacity=15.0),
+                gf.fixed_capacity_proportional_gatekeeping(capacity=15.0),
+                gf.equal_access_proportion_gatekeeping(access_proportion=0.5),
+            ],
+        )
 
 
 def test_time_phased_gatekeeping_raises_for_invalid_dimension():

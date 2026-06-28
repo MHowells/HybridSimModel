@@ -1,7 +1,61 @@
 import numpy as np
 import pytest
 import hybridsim.sd_component as sd
+import hybridsim.gatekeeping_functions as gf
 
+
+# Helper function for SD model
+# ----------------------------
+
+def get_simple_sd_model(
+    population_function=None,
+    initial_unwell_proportion=0.1,
+    unwell_splits=[0.5, 0.3, 0.2],
+    gatekeeping_function=None,
+    presenting_proportion=0.4,
+    deterioration_function=None,
+    incidence_function=None,
+    recovery_function=None,
+):
+    if population_function is None:
+
+        def population_function(t):
+            return 1000
+
+    if gatekeeping_function is None:
+
+        def gatekeeping_function(stocks, population, presenting_proportion, t):
+            return [0.0, 0.0, 0.0]
+
+    if deterioration_function is None:
+
+        def deterioration_function(t):
+            return 0.0
+
+    if incidence_function is None:
+
+        def incidence_function(t, population_size):
+            return 0.0
+
+    if recovery_function is None:
+
+        def recovery_function(t, stock_size):
+            return 0.0
+
+    return sd.SD(
+        population_function=population_function,
+        initial_unwell_proportion=initial_unwell_proportion,
+        unwell_splits=unwell_splits,
+        gatekeeping_function=gatekeeping_function,
+        presenting_proportion=presenting_proportion,
+        deterioration_function=deterioration_function,
+        incidence_function=incidence_function,
+        recovery_function=recovery_function,
+    )
+
+
+# Time-dependent population size tests
+# ------------------------------------
 
 def test_get_time_dependent_population_size_returns_expected_size_within_each_period():
     population_fn = sd.get_time_dependent_population_size(
@@ -59,6 +113,9 @@ def test_get_time_dependent_population_size_raises_value_error_for_mismatched_le
             durations=[10],
         )
 
+
+# Time-dependent incidence rate tests
+# -----------------------------------
 
 def test_get_time_dependent_incidence_rate_returns_expected_rate_within_each_period():
     incidence_fn = sd.get_time_dependent_incidence_rate(
@@ -134,6 +191,9 @@ def test_get_time_dependent_incidence_rate_raises_value_error_for_mismatched_len
         )
 
 
+# Time-dependent recovery rate tests
+# ----------------------------------
+
 def test_get_time_dependent_recovery_rate_returns_expected_rate_within_each_period():
     recovery_fn = sd.get_time_dependent_recovery_rate(
         recovery_proportions=[0.01, 0.02, 0.03],
@@ -197,6 +257,20 @@ def test_get_time_dependent_recovery_rate_uses_single_rate_indefinitely_when_dur
     assert recovery_fn(1000, stock_size) == 100
 
 
+def test_get_time_dependent_recovery_rate_raises_value_error_for_mismatched_lengths():
+    with pytest.raises(
+        ValueError,
+        match="The lengths of recovery_proportions and durations must match.",
+    ):
+        sd.get_time_dependent_recovery_rate(
+            recovery_proportions=[0.01, 0.02],
+            durations=[10],
+        )
+
+
+# Deterioration rate tests
+# ------------------------
+
 def test_deterioration_returns_expected_transition_rates():
     deterioration_fn = sd.get_deterioration_rates(
         category_widths=(0.50, 0.25, 0.25),
@@ -259,62 +333,82 @@ def test_deterioration_raises_value_error_when_shift_proportion_exceeds_smallest
         )
 
 
-def test_get_time_dependent_recovery_rate_raises_value_error_for_mismatched_lengths():
+# SD model construction and input validation tests
+# ------------------------------------------------
+
+@pytest.mark.parametrize(
+    "initial_unwell_proportion",
+    [-0.01, 1.01],
+)
+def test_sd_raises_value_error_for_initial_unwell_proportion_outside_zero_to_one(
+    initial_unwell_proportion,
+):
     with pytest.raises(
         ValueError,
-        match="The lengths of recovery_proportions and durations must match.",
+        match="initial_unwell_proportion must be between 0 and 1 inclusive.",
     ):
-        sd.get_time_dependent_recovery_rate(
-            recovery_proportions=[0.01, 0.02],
-            durations=[10],
+        get_simple_sd_model(
+            initial_unwell_proportion=initial_unwell_proportion,
         )
 
 
-def get_simple_sd_model(
-    population_function=None,
-    initial_unwell_proportion=0.1,
-    unwell_splits=[0.5, 0.3, 0.2],
-    gatekeeping_function=None,
-    presenting_proportion=0.4,
-    deterioration_function=None,
-    incidence_function=None,
-    recovery_function=None,
+def test_sd_raises_value_error_when_unwell_splits_do_not_sum_to_one():
+    with pytest.raises(
+        ValueError,
+        match="The values in unwell_splits must sum to 1.",
+    ):
+        get_simple_sd_model(
+            unwell_splits=(0.5, 0.3, 0.1),
+        )
+
+
+def test_sd_raises_value_error_when_unwell_splits_contain_negative_value():
+    with pytest.raises(
+        ValueError,
+        match="Every value in unwell_splits must be non-negative.",
+    ):
+        get_simple_sd_model(
+            unwell_splits=(0.5, -0.1, 0.6),
+        )
+
+
+@pytest.mark.parametrize(
+    "unwell_splits",
+    [
+        (0.5, 0.5),
+        (0.2, 0.3, 0.4, 0.1),
+    ],
+)
+def test_sd_raises_value_error_when_unwell_splits_do_not_contain_three_values(
+    unwell_splits,
 ):
-    if population_function is None:
+    with pytest.raises(
+        ValueError,
+        match="unwell_splits must contain exactly three values",
+    ):
+        get_simple_sd_model(
+            unwell_splits=unwell_splits,
+        )
 
-        def population_function(t):
-            return 1000
 
-    if gatekeeping_function is None:
+def test_sd_raises_type_error_when_initial_unwell_proportion_is_not_numeric():
+    with pytest.raises(
+        TypeError,
+        match="initial_unwell_proportion must be a numeric scalar.",
+    ):
+        get_simple_sd_model(
+            initial_unwell_proportion="not-a-number",
+        )
 
-        def gatekeeping_function(stocks, population, presenting_proportion, t):
-            return [0.0, 0.0, 0.0]
 
-    if deterioration_function is None:
-
-        def deterioration_function(t):
-            return 0.0
-
-    if incidence_function is None:
-
-        def incidence_function(t, population_size):
-            return 0.0
-
-    if recovery_function is None:
-
-        def recovery_function(t, stock_size):
-            return 0.0
-
-    return sd.SD(
-        population_function=population_function,
-        initial_unwell_proportion=initial_unwell_proportion,
-        unwell_splits=unwell_splits,
-        gatekeeping_function=gatekeeping_function,
-        presenting_proportion=presenting_proportion,
-        deterioration_function=deterioration_function,
-        incidence_function=incidence_function,
-        recovery_function=recovery_function,
-    )
+def test_sd_raises_value_error_when_unwell_splits_contain_non_finite_value():
+    with pytest.raises(
+        ValueError,
+        match="Every value in unwell_splits must be finite.",
+    ):
+        get_simple_sd_model(
+            unwell_splits=(0.5, np.nan, 0.5),
+        )
 
 
 def test_sd_initialises_stock_sizes_from_initial_population_unwell_proportion_and_splits():
@@ -352,6 +446,9 @@ def test_sd_initialises_time_and_lambdas_attributes():
     assert np.array_equal(model.time, np.array([0]))
     assert model.lambdas is None
 
+
+# SD model differential equations and solve method tests
+# ------------------------------------------------------
 
 def test_sd_differential_equations_returns_zero_when_total_population_is_zero():
     model = get_simple_sd_model()
@@ -560,6 +657,63 @@ def test_sd_solve_stores_initial_stock_values_at_start():
     assert model.P[2][0] == initial_P[2]
 
 
+def test_sd_solve_preserves_total_unwell_population_under_deterioration_only():
+    model = get_simple_sd_model(
+        initial_unwell_proportion=0.1,
+        unwell_splits=(0.5, 0.3, 0.2),
+        deterioration_function=lambda t: (0.01, 0.02),
+    )
+
+    t = np.linspace(0.0, 10.0, 11)
+    initial_total = sum(model.P)
+
+    model.solve(t=t)
+
+    total_unwell = model.P[0] + model.P[1] + model.P[2]
+
+    np.testing.assert_allclose(
+        total_unwell,
+        np.full_like(t, initial_total, dtype=float),
+    )
+
+
+def test_sd_solve_keeps_stocks_non_negative_under_high_referral_outflows():
+    model = get_simple_sd_model(
+        initial_unwell_proportion=0.1,
+        unwell_splits=(0.5, 0.3, 0.2),
+        presenting_proportion=0.8,
+        gatekeeping_function=lambda stocks, population, presenting_proportion, t: (
+            0.8 * np.asarray(stocks, dtype=float)
+        ),
+    )
+
+    t = np.linspace(0.0, 2.0, 21)
+    model.solve(t=t)
+
+    assert np.all(model.P[0] >= 0.0)
+    assert np.all(model.P[1] >= 0.0)
+    assert np.all(model.P[2] >= 0.0)
+
+
+def test_sd_solve_keeps_stocks_non_negative_with_referrals_and_recovery():
+    model = get_simple_sd_model(
+        initial_unwell_proportion=0.1,
+        unwell_splits=(0.5, 0.3, 0.2),
+        presenting_proportion=0.5,
+        gatekeeping_function=lambda stocks, population, presenting_proportion, t: (
+            0.5 * np.asarray(stocks, dtype=float)
+        ),
+        recovery_function=lambda t, stock_size: 0.05 * stock_size,
+    )
+
+    t = np.linspace(0.0, 1.0, 21)
+    model.solve(t=t)
+
+    assert np.all(model.P[0] >= 0.0)
+    assert np.all(model.P[1] >= 0.0)
+    assert np.all(model.P[2] >= 0.0)
+
+
 def test_sd_solve_returns_constant_stocks_when_all_flows_zero():
     def gatekeeping_function(stocks, population, presenting_proportion, t):
         if np.isscalar(t):
@@ -650,3 +804,76 @@ def test_sd_solve_accepts_gatekeeping_function_compatible_with_scalar_and_vector
     np.testing.assert_allclose(model.lambdas[0], np.full_like(t, 0.5, dtype=float))
     np.testing.assert_allclose(model.lambdas[1], np.full_like(t, 1.0, dtype=float))
     np.testing.assert_allclose(model.lambdas[2], np.full_like(t, 1.5, dtype=float))
+
+
+# Time-phased gatekeeping tests
+# -----------------------------
+
+def test_sd_solve_applies_time_phased_gatekeeping_at_specified_change_time():
+    no_referrals = lambda stocks, population, presenting_proportion, t: (
+        np.zeros_like(stocks, dtype=float)
+    )
+
+    full_access = lambda stocks, population, presenting_proportion, t: (
+        presenting_proportion * np.asarray(stocks, dtype=float)
+    )
+
+    gatekeeping_function = gf.time_phased_gatekeeping(
+        change_times=[2.0],
+        gatekeeping_policies=[
+            no_referrals,
+            full_access,
+        ],
+    )
+
+    model = get_simple_sd_model(
+        initial_unwell_proportion=0.1,
+        unwell_splits=(0.5, 0.3, 0.2),
+        presenting_proportion=0.4,
+        gatekeeping_function=gatekeeping_function,
+    )
+
+    t = np.array([0.0, 1.0, 2.0, 3.0])
+    model.solve(t=t)
+
+    np.testing.assert_allclose(
+        model.lambdas[:, :2],
+        np.zeros((3, 2)),
+    )
+
+    assert np.all(model.lambdas[:, 2:] > 0.0)
+
+
+def test_sd_solve_uses_new_time_phased_policy_on_change_time():
+    zero_capacity = gf.fixed_capacity_strict_gatekeeping(capacity=0.0)
+    positive_capacity = gf.fixed_capacity_strict_gatekeeping(capacity=15.0)
+
+    gatekeeping_function = gf.time_phased_gatekeeping(
+        change_times=[2.0],
+        gatekeeping_policies=[
+            zero_capacity,
+            positive_capacity,
+        ],
+    )
+
+    model = get_simple_sd_model(
+        initial_unwell_proportion=0.1,
+        unwell_splits=(0.5, 0.3, 0.2),
+        presenting_proportion=0.4,
+        gatekeeping_function=gatekeeping_function,
+    )
+
+    t = np.array([0.0, 1.0, 2.0, 3.0])
+    model.solve(t=t)
+
+    np.testing.assert_allclose(
+        model.lambdas[:, 0],
+        np.zeros(3),
+    )
+    np.testing.assert_allclose(
+        model.lambdas[:, 1],
+        np.zeros(3),
+    )
+
+    assert model.lambdas[:, 2].sum() > 0.0
+    assert model.lambdas[:, 3].sum() > 0.0
