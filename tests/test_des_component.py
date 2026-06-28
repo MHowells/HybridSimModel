@@ -1,8 +1,12 @@
 import ciw
 import numpy as np
+from types import SimpleNamespace
 import pytest
 import hybridsim.des_component as des
 
+
+# Activity dictionary tests
+# -------------------------
 
 def test_get_activity_dictionaries():
     alphabet = ['A', 'B', 'C']
@@ -16,25 +20,8 @@ def test_get_activity_dictionaries():
     assert inverted_dict == expected_inverted_dict
 
 
-N = ciw.create_network(
-    arrival_distributions=[
-        ciw.dists.Exponential(rate=1.0),
-        None,
-        None,
-    ],
-    service_distributions=[
-        ciw.dists.Exponential(rate=2.0),
-        ciw.dists.Exponential(rate=2.0),
-        ciw.dists.Exponential(rate=2.0),
-    ],
-    number_of_servers=[2, 2, 2],
-    routing=[
-        [0.0, 0.0, 0.0],
-        [0.0, 0.0, 0.0],
-        [0.0, 0.0, 0.0]
-    ]
-)
-
+# Helper functions
+# ----------------
 
 def make_deterministic_pdfa(
     alphabet,
@@ -194,10 +181,22 @@ def test_pdfa_routing_sends_patient_to_exit_when_current_state_has_no_outgoing_t
     assert ind.route_position == -1
 
 
-# Pre-operative expiry and routing tests
-# --------------------------------------
+# Pre-operative routing tests
+# ---------------------------
 
-def test_pdfa_routing_sets_pre_op_flag_after_pre_op_assessment():
+def make_service_record(
+    node,
+    service_end_date,
+):
+    return SimpleNamespace(
+        node=node,
+        service_end_date=service_end_date,
+    )
+
+
+def make_pre_op_routing(
+    pdfa,
+):
     alphabet = ["A", "B", "C"]
     activity_dict = {
         "A": 2,
@@ -207,11 +206,6 @@ def test_pdfa_routing_sets_pre_op_flag_after_pre_op_assessment():
     subspec_dict = {
         "Hip": 0,
     }
-
-    pdfa = make_deterministic_pdfa(
-        alphabet=alphabet,
-        activity_letter="A",
-    )
 
     routing = des.PDFARouting(
         pdfa_matrices=[pdfa, pdfa, pdfa],
@@ -224,6 +218,17 @@ def test_pdfa_routing_sets_pre_op_flag_after_pre_op_assessment():
 
     simulation = make_routing_test_simulation()
     routing.initialise(simulation, 1)
+
+    return routing, alphabet, activity_dict
+
+
+def test_pdfa_routing_sets_pre_op_flag_after_pre_op_assessment():
+    pdfa = make_deterministic_pdfa(
+        alphabet=["A", "B", "C"],
+        activity_letter="A",
+    )
+
+    routing, _, activity_dict = make_pre_op_routing(pdfa)
 
     ind = make_routing_test_individual(
         customer_class="Hip",
@@ -239,30 +244,11 @@ def test_pdfa_routing_sets_pre_op_flag_after_pre_op_assessment():
 
 def test_pdfa_routing_prevents_repeat_pre_op_assessment_when_alternative_route_exists():
     alphabet = ["A", "B", "C"]
-    activity_dict = {
-        "A": 2,
-        "B": 3,
-        "C": 4,
-    }
-    subspec_dict = {
-        "Hip": 0,
-    }
-
     pdfa = np.zeros((len(alphabet), 3, 3))
     pdfa[alphabet.index("A"), 1, 2] = 0.5
     pdfa[alphabet.index("B"), 1, 2] = 0.5
 
-    routing = des.PDFARouting(
-        pdfa_matrices=[pdfa, pdfa, pdfa],
-        alphabets=[alphabet, alphabet, alphabet],
-        activity_dict=activity_dict,
-        subspec_dict=subspec_dict,
-        pre_op_letter="B",
-        elective_surgery_letter="C",
-    )
-
-    simulation = make_routing_test_simulation()
-    routing.initialise(simulation, 1)
+    routing, _, activity_dict = make_pre_op_routing(pdfa)
 
     ind = make_routing_test_individual(
         customer_class="Hip",
@@ -279,32 +265,12 @@ def test_pdfa_routing_prevents_repeat_pre_op_assessment_when_alternative_route_e
 
 
 def test_pdfa_routing_resets_pre_op_flag_after_elective_surgery():
-    alphabet = ["A", "B", "C"]
-    activity_dict = {
-        "A": 2,
-        "B": 3,
-        "C": 4,
-    }
-    subspec_dict = {
-        "Hip": 0,
-    }
-
     pdfa = make_deterministic_pdfa(
-        alphabet=alphabet,
+        alphabet=["A", "B", "C"],
         activity_letter="A",
     )
 
-    routing = des.PDFARouting(
-        pdfa_matrices=[pdfa, pdfa, pdfa],
-        alphabets=[alphabet, alphabet, alphabet],
-        activity_dict=activity_dict,
-        subspec_dict=subspec_dict,
-        pre_op_letter="B",
-        elective_surgery_letter="C",
-    )
-
-    simulation = make_routing_test_simulation()
-    routing.initialise(simulation, 1)
+    routing, _, activity_dict = make_pre_op_routing(pdfa)
 
     ind = make_routing_test_individual(
         customer_class="Hip",
@@ -319,3 +285,145 @@ def test_pdfa_routing_resets_pre_op_flag_after_elective_surgery():
     assert ind.pre_op is False
 
 
+# Pre-operative expiry distribution tests
+# ---------------------------------------
+
+def make_pre_op_expiry_distribution():
+    activity_dict = {
+        "A": 2,
+        "B": 3,
+        "C": 4,
+    }
+    subspec_dict = {
+        "Hip": 0,
+    }
+
+    expiry_distribution = des.PreOpExpiryDist(
+        activity_dict=activity_dict,
+        subspec_dict=subspec_dict,
+        pre_op_letter="B",
+        elective_surgery_letter="C",
+    )
+
+    return expiry_distribution, activity_dict
+
+
+def make_pre_op_expiry_test_individual(
+    data_records,
+    customer_class="Hip",
+):
+    return SimpleNamespace(
+        customer_class=customer_class,
+        data_records=data_records,
+    )
+
+
+def test_pre_op_expiry_returns_infinity_when_patient_has_no_pre_op_assessment():
+    expiry_distribution, _ = make_pre_op_expiry_distribution()
+
+    ind = make_pre_op_expiry_test_individual(
+        data_records=[],
+    )
+
+    obtained = expiry_distribution.sample(
+        t=100.0,
+        ind=ind,
+    )
+
+    assert obtained == float("inf")
+
+
+def test_pre_op_expiry_returns_remaining_validity_after_pre_op_assessment():
+    expiry_distribution, activity_dict = make_pre_op_expiry_distribution()
+
+    ind = make_pre_op_expiry_test_individual(
+        data_records=[
+            make_service_record(
+                node=activity_dict["B"],
+                service_end_date=100.0,
+            ),
+        ],
+    )
+
+    obtained = expiry_distribution.sample(
+        t=110.0,
+        ind=ind,
+    )
+
+    expected = des.PRE_OP_VALIDITY_DAYS - 10.0
+
+    assert obtained == expected
+
+
+def test_pre_op_expiry_returns_infinity_when_surgery_occurs_after_pre_op_assessment():
+    expiry_distribution, activity_dict = make_pre_op_expiry_distribution()
+
+    ind = make_pre_op_expiry_test_individual(
+        data_records=[
+            make_service_record(
+                node=activity_dict["B"],
+                service_end_date=100.0,
+            ),
+            make_service_record(
+                node=activity_dict["C"],
+                service_end_date=120.0,
+            ),
+        ],
+    )
+
+    obtained = expiry_distribution.sample(
+        t=130.0,
+        ind=ind,
+    )
+
+    assert obtained == float("inf")
+
+
+def test_pre_op_expiry_uses_latest_pre_op_assessment_after_surgery():
+    expiry_distribution, activity_dict = make_pre_op_expiry_distribution()
+
+    ind = make_pre_op_expiry_test_individual(
+        data_records=[
+            make_service_record(
+                node=activity_dict["B"],
+                service_end_date=100.0,
+            ),
+            make_service_record(
+                node=activity_dict["C"],
+                service_end_date=120.0,
+            ),
+            make_service_record(
+                node=activity_dict["B"],
+                service_end_date=140.0,
+            ),
+        ],
+    )
+
+    obtained = expiry_distribution.sample(
+        t=150.0,
+        ind=ind,
+    )
+
+    expected = des.PRE_OP_VALIDITY_DAYS - 10.0
+
+    assert obtained == expected
+
+
+def test_pre_op_expiry_returns_negative_remaining_time_when_assessment_has_expired():
+    expiry_distribution, activity_dict = make_pre_op_expiry_distribution()
+
+    ind = make_pre_op_expiry_test_individual(
+        data_records=[
+            make_service_record(
+                node=activity_dict["B"],
+                service_end_date=100.0,
+            ),
+        ],
+    )
+
+    obtained = expiry_distribution.sample(
+        t=100.0 + des.PRE_OP_VALIDITY_DAYS + 1.0,
+        ind=ind,
+    )
+
+    assert obtained == -1.0
