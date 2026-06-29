@@ -2,7 +2,7 @@
 
 ## Overview
 
-This repository contains the Python implementation of ahybrid simulation model 
+This repository contains the Python implementation of a hybrid simulation model 
 developed as part of a PhD project investigating demand, patient pathways, and 
 service capacity in elective Trauma and Orthopaedics (T&O) care.
 
