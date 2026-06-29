@@ -287,13 +287,20 @@ class SD:
         else:
             low_to_medium_rate, medium_to_high_rate = deterioration
 
+        recovery_flow = self.recovery_rate(
+            t=time_domain,
+            stock_size=N_current,
+        )
+
+        recovery_flow = min(
+            max(recovery_flow, 0.0),
+            max(P_low, 0.0),
+        )
+
         dP_lowdt = (
             -lambdas[LOW]
             - (low_to_medium_rate * P_low)
-            - self.recovery_rate(
-                t=time_domain, 
-                stock_size=N_current,
-            )
+            - recovery_flow
             + self.incidence_rate(
                 t=time_domain, 
                 population_size=current_population
