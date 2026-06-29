@@ -2,20 +2,42 @@
 
 ## Overview
 
-This is a repository of the hybrid simulation model that I am developing for 
-my PhD. The model combines a System Dynamics (SD) model with a Discrete Event 
-Simulation (DES) model. The SD model is used to model patient deterioration 
-while waiting for a General Practitioner (GP) referral in Primary Care, and the 
-DES model is used to model the patient journey through an Orthopaedic department.
+This repository contains the Python implementation of ahybrid simulation model 
+developed as part of a PhD project investigating demand, patient pathways, and 
+service capacity in elective Trauma and Orthopaedics (T&O) care.
 
-The transitions in the DES component can be parametrised using Probabilistic 
-Deterministic Finite Automata (PDFAs). For more information on obtaining PDFAs 
-used in the model, please visit my other repository, 
-[pdfa-learning](https://github.com/MHowells/pdfa-learning).
+The model links two simulation approaches sequentially:
+- A **System Dynamics (SD)** model represents the population with musculoskeletal 
+clinical need in the community. It models changes in the number and severity of 
+patients over time, including incidence, recovery, deterioration, presentation 
+to primary care, and referral to secondary care.
+- A **Discrete-Event Simulation (DES)** model represents the subsequent movement 
+of individual patients through an elective orthopaedic service. It captures patient 
+arrivals, queues, resources, waiting times, and progression through outpatient, 
+pre-operative, inpatient, and follow-up activities.
+
+The SD component generates time-varying General Practitioner (GP) referral flows 
+for patients with Low, Medium, and High severity needs. These flows are used as 
+arrivals to the DES component, allowing the operational consequences of different 
+assumptions about community demand, deterioration, referral access, and service 
+capacity to be explored.
+
+Patient pathways within the DES are parameterised using 
+**Probabilistic Deterministic Finite Automata (PDFAs)** learned from historical 
+pathway data. This allows the model to represent variation in observed pathways 
+across orthopaedic subspecialties and severity groups, rather than assuming that 
+all patients follow a single average route.
+
+For information on learning the PDFAs used in the model, see the accompanying 
+[pdfa-learning](https://github.com/MHowells/pdfa-learning) repository.
+
+The model is intended as a research tool for exploring how changes in demand, 
+gatekeeping or referral policies, and service capacity may affect outcomes such 
+as waiting times, pathway completion, queueing, and resource use.
 
 This work was presented at The OR Society's 12th Simulation Workshop (SW25) 
 conference. The poster, "Clinical Pathway Modelling of a Trauma and Orthopaedics 
-Department", can be viewed in my repository, 
+Department", can be viewed in the repository, 
 [SW25_poster](https://github.com/MHowells/SW25_poster).
 
 ## Installing Dependencies
@@ -44,13 +66,13 @@ dependencies by running the following command:
 - Matthew Howells: [0000-0002-3931-7027](https://orcid.org/0000-0002-3931-7027)
 - Paul Harper: [0000-0001-7894-4907](https://orcid.org/0000-0001-7894-4907)
 - Daniel Gartner: [0000-0003-4361-8559](https://orcid.org/0000-0003-4361-8559)
-- Geraint Palmer: [0000-0001-7865-6964](https://orcid.org/0000-0001-7865-6964)
+- Geraint Palmer-Liyu: [0000-0001-7865-6964](https://orcid.org/0000-0001-7865-6964)
 
 ## Citation
 
 To cite this repository:
 
-> Matthew Howells, Paul Harper, Daniel Gartner, Geraint Palmer (2025) Hybrid 
+> Matthew Howells, Paul Harper, Daniel Gartner, Geraint Palmer-Liyu (2025) Hybrid 
 Simulation Modelling for Orthopaedics. GitHub. 
 https://github.com/MHowells/HybridSimModel.
 

@@ -20,7 +20,8 @@ def validate_initial_state_inputs(
     initial_unwell_proportion,
     unwell_splits,
 ):
-    """Validate and normalise the initial population proportions.
+    """
+    Validate and normalise the initial population proportions.
 
     Parameters
     ----------
@@ -141,7 +142,7 @@ def normalise_piecewise_inputs(values, durations, value_name):
 
     if len(values) != len(durations):
         raise ValueError(
-            f"The lengths of {value_name} and durations must match. "
+            f"The lengths of {value_name} and durations must match."
             f"Received {len(values)} values and {len(durations)} "
             "durations."
         )

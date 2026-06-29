@@ -264,7 +264,9 @@ def get_pdfa_lists(
     pdfa_subspec_names, 
     severity_levels,
 ):
-    """Return PDFA and alphabet lists in the order expected by the DES routing code."""
+    """
+    Return PDFA and alphabet lists in the order expected by the DES routing code.
+    """
     pdfas = [
         pdfa_lookup[(subspec, severity)]
         for subspec in pdfa_subspec_names
@@ -325,7 +327,8 @@ def get_list_of_nodes(alphabets, subspecialties):
 
 
 def remove_activity_from_pdfa(pdfa, activity_index, tol=1e-12):
-    """Return a PDFA copy with one activity removed.
+    """
+    Return a PDFA copy with one activity removed.
 
     The remaining outgoing probabilities are renormalised. If removing
     the activity leaves no transitions from a state, its row remains
@@ -338,10 +341,8 @@ def remove_activity_from_pdfa(pdfa, activity_index, tol=1e-12):
     )
     n_states = adjusted_pdfa.shape[1]
 
-    # Remove every transition associated with the selected activity.
     adjusted_pdfa[activity_index, :, :] = 0.0
 
-    # Renormalise the remaining transitions from each state.
     for state in range(n_states):
         row_total = adjusted_pdfa[:, state, :].sum()
 
@@ -432,7 +433,8 @@ def add_tau_escape_to_states(
 
 
 class PDFARouting(ciw.routing.NodeRouting):
-    """Implement PDFA-based routing in a Ciw simulation.
+    """
+    Implement PDFA-based routing in a Ciw simulation.
 
     The routing strategy selects the next activity and PDFA state from
     the transition probabilities associated with an individual's
@@ -1049,7 +1051,8 @@ def get_class_change_matrices(
 
 
 class PreOpExpiryDist(ciw.dists.Distribution):
-    """Model expiry of a pre-operative assessment.
+    """
+    Model expiry of a pre-operative assessment.
 
     A patient waiting for elective surgery reneges when their most
     recent pre-operative assessment reaches its validity limit. A
@@ -1242,7 +1245,8 @@ def get_network(
     gp_arrival_rates=None,
     other_arrival_rates=None,
 ):
-    """Construct the Ciw simulation network.
+    """
+    Construct the Ciw simulation network.
 
     Parameters
     ----------
