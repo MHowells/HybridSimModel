@@ -1,5 +1,15 @@
+"""
+Tests for the system dynamics component.
+
+Covers time-dependent population, incidence, recovery, and deterioration
+functions; model construction and input validation; differential equations;
+and solution behaviour, including stock conservation, non-negativity, and
+referral-flow calculations.
+"""
+
 import numpy as np
 import pytest
+
 import hybridsim.sd_component as sd
 import hybridsim.gatekeeping_functions as gf
 

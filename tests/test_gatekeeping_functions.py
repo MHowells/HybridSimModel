@@ -1,5 +1,15 @@
+"""
+Tests for gatekeeping policies that allocate referrals across severity groups.
+
+Covers strict-priority, fixed-capacity, proportional, weighted-priority,
+seasonal-capacity, equal-access, severity-specific, split-capacity-priority,
+and severity-responsive policies. Tests cover scalar and time-series inputs,
+demand and capacity constraints, edge cases, and input validation.
+"""
+
 import numpy as np
 import pytest
+
 import hybridsim.gatekeeping_functions as gf
 
 

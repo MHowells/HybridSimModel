@@ -1,8 +1,19 @@
+"""
+Tests for the discrete-event simulation component.
+
+Covers activity dictionaries, PDFA manipulation and routing, pre-operative
+assessment validity, arrival and service distribution set-up, network
+construction, trial execution, custom Ciw record writing, and minimal
+end-to-end patient flows.
+"""
+
+from types import SimpleNamespace
+
 import ciw
 import numpy as np
 import pandas as pd
-from types import SimpleNamespace
 import pytest
+
 import hybridsim.des_component as des
 
 
