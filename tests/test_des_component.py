@@ -1873,7 +1873,10 @@ def test_custom_write_reneging_record_adds_renege_record():
 # Minimal end-to-end tests
 # ------------------------
 
-def make_minimal_end_to_end_test_network():
+def make_minimal_end_to_end_test_network(
+    gp_arrival_rates=None,
+    other_arrival_rates=None,
+):
     alphabet = ["A", "B", "C"]
     alphabets = [
         alphabet,
@@ -1891,16 +1894,34 @@ def make_minimal_end_to_end_test_network():
         "Hip": 0,
     }
 
-    pdfa = make_deterministic_pdfa(
+    low_pdfa = make_deterministic_pdfa(
         alphabet=alphabet,
         activity_letter="A",
         from_state=1,
         to_state=2,
     )
 
-    routing = des.PDFARouting(
-        pdfa_matrices=[pdfa, pdfa, pdfa],
-        alphabets=alphabets,
+    medium_pdfa = make_deterministic_pdfa(
+        alphabet=alphabet,
+        activity_letter="B",
+        from_state=1,
+        to_state=2,
+    )
+
+    high_pdfa = make_deterministic_pdfa(
+        alphabet=alphabet,
+        activity_letter="C",
+        from_state=1,
+        to_state=2,
+    )
+
+    routing = des.JockeyRouting(
+        pdfa_matrix=[
+            low_pdfa,
+            medium_pdfa,
+            high_pdfa,
+        ],
+        alphabet=alphabets,
         activity_dict=activity_dict,
         subspec_dict=subspec_dict,
         pre_op_letter="B",
@@ -1920,11 +1941,19 @@ def make_minimal_end_to_end_test_network():
         elective_surgery_letter="C",
     )
 
-    gp_arrival_rates = [
-        ciw.dists.Deterministic(value=1.0),
-        None,
-        None,
-    ]
+    if gp_arrival_rates is None:
+        gp_arrival_rates = [
+            ciw.dists.Deterministic(value=1.0),
+            None,
+            None,
+        ]
+
+    if other_arrival_rates is None:
+        other_arrival_rates = [
+            None,
+            None,
+            None,
+        ]
 
     return des.get_network(
         alphabets=alphabets,
@@ -1937,7 +1966,7 @@ def make_minimal_end_to_end_test_network():
         subspec_probs_medium=[1.0],
         subspec_probs_high=[1.0],
         gp_arrival_rates=gp_arrival_rates,
-        other_arrival_rates=[None, None, None],
+        other_arrival_rates=other_arrival_rates,
     )
 
 
@@ -1967,3 +1996,349 @@ def test_minimal_network_routes_gp_referral_to_activity_and_exit():
     assert first_activity_record["node"] == 3
     assert first_activity_record["service_end_date"] == 1.5
     assert first_activity_record["exit_date"] == 1.5
+
+
+def test_minimal_network_routes_medium_gp_referral_to_activity_and_exit():
+    des.apply_custom_record_changes()
+    ciw.seed(1)
+
+    network = make_minimal_end_to_end_test_network(
+        gp_arrival_rates=[
+            None,
+            ciw.dists.Deterministic(value=1.0),
+            None,
+        ],
+    )
+
+    records = des.run_des_trial(
+        network=network,
+        run_time=5.0,
+    )
+
+    activity_records = records.loc[
+        (
+            (records["customer_class"] == "Hip")
+            & (records["level"] == "Medium")
+            & (records["node"] == 4)
+            & (records["record_type"] == "service")
+        )
+    ]
+
+    assert not activity_records.empty
+
+    first_activity_record = activity_records.iloc[0]
+
+    assert first_activity_record["customer_class"] == "Hip"
+    assert first_activity_record["level"] == "Medium"
+    assert first_activity_record["node"] == 4
+    assert first_activity_record["referral_source"] == "GP"
+    assert first_activity_record["service_end_date"] == 1.5
+    assert first_activity_record["exit_date"] == 1.5
+
+
+def test_minimal_network_routes_high_gp_referral_to_activity_and_exit():
+    des.apply_custom_record_changes()
+    ciw.seed(1)
+
+    network = make_minimal_end_to_end_test_network(
+        gp_arrival_rates=[
+            None,
+            None,
+            ciw.dists.Deterministic(value=1.0),
+        ],
+    )
+
+    records = des.run_des_trial(
+        network=network,
+        run_time=5.0,
+    )
+
+    activity_records = records.loc[
+        (
+            (records["customer_class"] == "Hip")
+            & (records["level"] == "High")
+            & (records["node"] == 5)
+            & (records["record_type"] == "service")
+        )
+    ]
+
+    assert not activity_records.empty
+
+    first_activity_record = activity_records.iloc[0]
+
+    assert first_activity_record["customer_class"] == "Hip"
+    assert first_activity_record["level"] == "High"
+    assert first_activity_record["node"] == 5
+    assert first_activity_record["referral_source"] == "GP"
+    assert first_activity_record["service_end_date"] == 1.5
+    assert first_activity_record["exit_date"] == 1.5
+
+
+def test_minimal_network_routes_other_referral_to_activity_and_exit():
+    des.apply_custom_record_changes()
+    ciw.seed(1)
+
+    network = make_minimal_end_to_end_test_network(
+        gp_arrival_rates=[
+            None,
+            None,
+            None,
+        ],
+        other_arrival_rates=[
+            None,
+            ciw.dists.Deterministic(value=1.0),
+            None,
+        ],
+    )
+
+    records = des.run_des_trial(
+        network=network,
+        run_time=5.0,
+    )
+
+    activity_records = records.loc[
+        (
+            (records["customer_class"] == "Hip")
+            & (records["level"] == "Medium")
+            & (records["node"] == 4)
+            & (records["record_type"] == "service")
+        )
+    ]
+
+    assert not activity_records.empty
+
+    first_activity_record = activity_records.iloc[0]
+
+    assert first_activity_record["customer_class"] == "Hip"
+    assert first_activity_record["level"] == "Medium"
+    assert first_activity_record["node"] == 4
+    assert first_activity_record["referral_source"] == "Other"
+    assert first_activity_record["service_end_date"] == 1.5
+    assert first_activity_record["exit_date"] == 1.5
+
+
+def make_pre_op_expiry_end_to_end_network():
+    alphabet = ["B", "C"]
+
+    activity_dict = {
+        "B": 3,
+        "C": 4,
+    }
+
+    subspec_dict = {
+        "Hip": 0,
+    }
+
+    low_pdfa = np.zeros((len(alphabet), 4, 4))
+    low_pdfa[
+        alphabet.index("B"),
+        1,
+        2,
+    ] = 1.0
+    low_pdfa[
+        alphabet.index("C"),
+        2,
+        3,
+    ] = 1.0
+
+    medium_pdfa = np.zeros((len(alphabet), 4, 4))
+    medium_pdfa[
+        alphabet.index("C"),
+        1,
+        2,
+    ] = 1.0
+
+    high_pdfa = np.zeros((len(alphabet), 4, 4))
+
+    jockey_routing = des.JockeyRouting(
+        pdfa_matrix=[
+            low_pdfa,
+            medium_pdfa,
+            high_pdfa,
+        ],
+        alphabet=[
+            alphabet,
+            alphabet,
+            alphabet,
+        ],
+        activity_dict=activity_dict,
+        subspec_dict=subspec_dict,
+        pre_op_letter="B",
+        elective_surgery_letter="C",
+    )
+
+    pre_op_expiry_distribution = des.PreOpExpiryDist(
+        activity_dict=activity_dict,
+        subspec_dict=subspec_dict,
+        pre_op_letter="B",
+        elective_surgery_letter="C",
+    )
+
+    nodes = ["*", "*", "B", "C"]
+
+    class_changes = des.get_class_change_matrices(
+        nodes=nodes,
+        subspecialties=["Hip"],
+        subspec_probs_low=[1.0],
+        subspec_probs_medium=[1.0],
+        subspec_probs_high=[1.0],
+    )
+
+    return ciw.create_network(
+        arrival_distributions={
+            "Low": [
+                ciw.dists.Sequential([
+                    10.0,
+                    float("inf"),
+                ]),
+                None,
+                None,
+                None,
+            ],
+            "Medium": [
+                ciw.dists.Sequential([
+                    5.0,
+                    float("inf"),
+                ]),
+                None,
+                None,
+                None,
+            ],
+            "High": [
+                None,
+                None,
+                None,
+                None,
+            ],
+            "Hip": [
+                None,
+                None,
+                None,
+                None,
+            ],
+        },
+        service_distributions={
+            "Low": [
+                ciw.dists.Deterministic(value=0.0),
+                ciw.dists.Deterministic(value=0.0),
+                ciw.dists.Deterministic(value=0.0),
+                ciw.dists.Deterministic(value=0.0),
+            ],
+            "Medium": [
+                ciw.dists.Deterministic(value=0.0),
+                ciw.dists.Deterministic(value=0.0),
+                ciw.dists.Deterministic(value=0.0),
+                ciw.dists.Deterministic(value=0.0),
+            ],
+            "High": [
+                ciw.dists.Deterministic(value=0.0),
+                ciw.dists.Deterministic(value=0.0),
+                ciw.dists.Deterministic(value=0.0),
+                ciw.dists.Deterministic(value=0.0),
+            ],
+            "Hip": [
+                ciw.dists.Deterministic(value=0.0),
+                ciw.dists.Deterministic(value=0.0),
+                ciw.dists.Deterministic(value=27.0),
+                ciw.dists.Deterministic(value=240.0),
+            ],
+        },
+        number_of_servers=[
+            float("inf"),
+            float("inf"),
+            1,
+            1,
+        ],
+        routing={
+            "Low": ciw.routing.NetworkRouting(
+                routers=[
+                    ciw.routing.Leave(),
+                    ciw.routing.Leave(),
+                    ciw.routing.Leave(),
+                    ciw.routing.Leave(),
+                ],
+            ),
+            "Medium": ciw.routing.NetworkRouting(
+                routers=[
+                    ciw.routing.Leave(),
+                    ciw.routing.Leave(),
+                    ciw.routing.Leave(),
+                    ciw.routing.Leave(),
+                ],
+            ),
+            "High": ciw.routing.NetworkRouting(
+                routers=[
+                    ciw.routing.Leave(),
+                    ciw.routing.Leave(),
+                    ciw.routing.Leave(),
+                    ciw.routing.Leave(),
+                ],
+            ),
+            "Hip": ciw.routing.NetworkRouting(
+                routers=[
+                    jockey_routing,
+                    jockey_routing,
+                    jockey_routing,
+                    jockey_routing,
+                ],
+            ),
+        },
+        class_change_matrices=class_changes,
+        reneging_time_distributions={
+            "Low": [None, None, None, None],
+            "Medium": [None, None, None, None],
+            "High": [None, None, None, None],
+            "Hip": [
+                None,
+                None,
+                pre_op_expiry_distribution,
+                pre_op_expiry_distribution,
+            ],
+        },
+    )
+
+
+def test_pre_op_expiry_routes_patient_back_to_pre_op_assessment():
+    des.apply_custom_record_changes()
+    ciw.seed(0)
+
+    network = make_pre_op_expiry_end_to_end_network()
+
+    simulation = ciw.Simulation(network)
+
+    simulation.simulate_until_max_time(
+        300.0,
+    )
+
+    records = pd.DataFrame(
+        simulation.get_all_records(),
+    )
+
+    renege_records = records.loc[
+        records["record_type"] == "renege"
+    ]
+
+    assert len(renege_records) == 1
+
+    renege_record = renege_records.iloc[0]
+
+    assert renege_record["node"] == 4
+    assert renege_record["arrival_date"] == 37.0
+    assert renege_record["waiting_time"] == 182.0
+    assert renege_record["exit_date"] == 219.0
+
+    reassessment_records = records.loc[
+        (
+            (records["id_number"] == renege_record["id_number"])
+            & (records["node"] == 3)
+            & (records["record_type"] == "service")
+            & (records["arrival_date"] == 219.0)
+        )
+    ]
+
+    assert len(reassessment_records) == 1
+
+    reassessment_record = reassessment_records.iloc[0]
+
+    assert reassessment_record["service_start_date"] == 219.0
+    assert reassessment_record["service_end_date"] == 246.0
