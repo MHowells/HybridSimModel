@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hybrid-sim-model"
+version = "0.0.1"
+description = "A sequential hybrid simulation model of referral access and patient flow in elective Trauma and Orthopaedics."
+license = "MIT"
+readme = "README.md"
+authors = [
+    { name = "Matthew Howells" },
+    { name = "Paul Harper" },
+    { name = "Daniel Gartner" },
+    { name = "Geraint Palmer-Liyu" },
+]
+
+[project.urls]
+Repository = "https://github.com/MHowells/HybridSimModel"
+Issues = "https://github.com/MHowells/HybridSimModel/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["hybridsim*"]
