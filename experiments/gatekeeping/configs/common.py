@@ -5,7 +5,7 @@ This module contains simulation controls and SD/DES parameters that are
 intended to remain the same across scenario families.
 """
 
-from run.experiment_paths import THIS_DIR
+from run.experiment_paths import EMPIRICAL_PDFAS_DIR
 
 
 # Simulation run controls
@@ -30,12 +30,7 @@ N_WORKERS = 5
 
 
 # Define paths
-PDFA_DIR = (
-    THIS_DIR
-    / "../../../../../OneDrive - Cardiff University/Desktop/PhD/"
-    "rsch/modelling/pattern-mining/pdfas/"
-    "subspecs_length_pdfas_expo/selected"
-).resolve()
+PDFA_DIR = EMPIRICAL_PDFAS_DIR.resolve()
 
 
 # Shared SD parameters

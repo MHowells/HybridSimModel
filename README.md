@@ -59,7 +59,7 @@ To install the dependencies:
 Alternatively, you can use conda to create a new environment with the required
 dependencies by running the following command:
 
-    $ conda env create --file environment.yml
+    $ conda env create --file environment.yaml
 
 ## Author ORCID
 
