@@ -15,7 +15,7 @@ EXP_DIR = THIS_DIR.parent
 ROOT_DIR = THIS_DIR.parents[2]
 SRC_DIR = ROOT_DIR / "src"
 
-OUTPUT_DIR = EXP_DIR / "outputs"
+OUTPUT_DIR = THIS_DIR / "outputs"
 
 RECORDS_DIR = OUTPUT_DIR / "records"
 METADATA_DIR = OUTPUT_DIR / "metadata"

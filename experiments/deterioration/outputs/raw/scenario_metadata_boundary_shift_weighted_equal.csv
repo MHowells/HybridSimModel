@@ -1,0 +1,7 @@
+scenario_index,scenario,deterioration_model,deterioration_label,stock_proportional_mean_time_days,boundary_shift_proportion,gatekeeping_policy,description
+0,boundary_shift_0_01_weighted_equal,boundary_shift,shift_0.01,,0.01,weighted_equal,Boundary shift deterioration: 0.01 shift per six months; gatekeeping: weighted_equal
+1,boundary_shift_0_02_weighted_equal,boundary_shift,shift_0.02,,0.02,weighted_equal,Boundary shift deterioration: 0.02 shift per six months; gatekeeping: weighted_equal
+2,boundary_shift_0_025_weighted_equal,boundary_shift,shift_0.025,,0.025,weighted_equal,Boundary shift deterioration: 0.025 shift per six months; gatekeeping: weighted_equal
+3,boundary_shift_0_05_weighted_equal,boundary_shift,shift_0.05,,0.05,weighted_equal,Boundary shift deterioration: 0.05 shift per six months; gatekeeping: weighted_equal
+4,boundary_shift_0_075_weighted_equal,boundary_shift,shift_0.075,,0.075,weighted_equal,Boundary shift deterioration: 0.075 shift per six months; gatekeeping: weighted_equal
+5,boundary_shift_0_1_weighted_equal,boundary_shift,shift_0.1,,0.1,weighted_equal,Boundary shift deterioration: 0.1 shift per six months; gatekeeping: weighted_equal

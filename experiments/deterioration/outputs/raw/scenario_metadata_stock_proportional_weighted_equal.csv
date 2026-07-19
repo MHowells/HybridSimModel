@@ -1,0 +1,5 @@
+scenario_index,scenario,deterioration_model,deterioration_label,stock_proportional_mean_time_days,boundary_shift_proportion,gatekeeping_policy,description
+0,stock_proportional_six_months_weighted_equal,stock_proportional,six_months,180,,weighted_equal,Stock proportional deterioration: six_months; gatekeeping: weighted_equal
+1,stock_proportional_two_years_weighted_equal,stock_proportional,two_years,730,,weighted_equal,Stock proportional deterioration: two_years; gatekeeping: weighted_equal
+2,stock_proportional_five_years_weighted_equal,stock_proportional,five_years,1825,,weighted_equal,Stock proportional deterioration: five_years; gatekeeping: weighted_equal
+3,stock_proportional_ten_years_weighted_equal,stock_proportional,ten_years,3650,,weighted_equal,Stock proportional deterioration: ten_years; gatekeeping: weighted_equal
