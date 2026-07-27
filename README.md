@@ -61,6 +61,205 @@ dependencies by running the following command:
 
     $ conda env create --file environment.yaml
 
+## Model Structure
+
+The principal components of the model are implemented in the `hybridsim` Python package.
+
+### System Dynamics component
+
+The SD component is implemented in:
+
+```text
+src/hybridsim/sd_component.py
+```
+
+It contains the stock-and-flow model, time-dependent population, incidence and recovery functions, deterioration formulations, and the methods used to solve the model and prepare its referral outputs.
+
+### Gatekeeping functions
+
+The referral-access and gatekeeping policies are implemented in:
+
+```text
+src/hybridsim/gatekeeping_functions.py
+```
+
+### Discrete-Event Simulation component
+
+The DES component is implemented in:
+
+```text
+src/hybridsim/des_component.py
+```
+
+It uses the open-source [`Ciw`](https://ciw.readthedocs.io/) simulation library to represent patient arrivals, queues, service activities, routing, subspecialty allocation, pathway termination, and pre-operative assessment expiry.
+
+### Results processing
+
+Functions used to prepare patient-, activity-, and cohort-level outputs are contained in:
+
+```text
+src/hybridsim/results.py
+```
+
+These functions support the removal of the warm-up period and the preparation of simulation records for subsequent analysis.
+
+## Availability of Data and Model Artefacts
+
+Permission to distribute the final empirical PDFAs, some experiment-specific parameters and model results publicly is currently being established. These restrictions are identified in the relevant experiment directories.
+
+Consequently, the public repository supports inspection of the model implementation, execution of the automated tests, and demonstration of the modelling workflow. Exact reproduction of all numerical results reported in the associated thesis will require the final empirical model artefacts and experiment-specific inputs.
+
+## Running the Automated Tests
+
+The automated test suite covers the SD component, gatekeeping functions, DES component, and the linkage between the SD and DES models.
+
+Run the complete test suite from the repository root using:
+
+```bash
+python -m pytest
+```
+
+Individual test files can also be executed separately. For example:
+
+```bash
+python -m pytest tests/test_sd_component.py
+python -m pytest tests/test_gatekeeping_functions.py
+python -m pytest tests/test_des_component.py
+python -m pytest tests/test_hybrid_linkage.py
+```
+
+The tests are intended to verify the implemented model logic. They do not constitute empirical validation of the model or its application to a particular healthcare setting.
+
+## Behavioural Assessment
+
+The notebooks used for the behavioural assessment of the individual simulation components are located in:
+
+```text
+experiments/behaviour/analysis/
+```
+
+These include:
+
+```text
+sd_behaviour.ipynb
+des_behaviour.ipynb
+```
+
+The SD notebook examines whether changes in the severity stocks follow from the specified incidence, recovery, deterioration, and referral processes.
+
+The DES notebook uses simplified deterministic pathways and service assumptions to examine patient routing, resource loading, queue formation, and pathway completion under controlled conditions.
+
+Associated figures are stored in:
+
+```text
+experiments/behaviour/plots/
+```
+
+## Deterioration Experiments
+
+The deterioration experiments compare alternative representations and assumptions concerning progression between severity cohorts.
+
+The experiment configurations are located in:
+
+```text
+experiments/deterioration/configs/
+```
+
+The available deterioration formulations are:
+
+- stock-proportional deterioration; and
+- boundary-shift deterioration.
+
+From the repository root, run the stock-proportional experiment using:
+
+```bash
+python experiments/deterioration/run/run_deterioration.py stock_proportional
+```
+
+Run the boundary-shift experiment using:
+
+```bash
+python experiments/deterioration/run/run_deterioration.py boundary_shift
+```
+
+The raw outputs are written to the corresponding `outputs` directory. The notebooks used to summarise and plot the results are:
+
+```text
+experiments/deterioration/analysis/summarise_deterioration_results.ipynb
+experiments/deterioration/analysis/plot_deterioration_results.ipynb
+```
+
+The intended order is therefore:
+
+1. run the selected deterioration experiment;
+2. execute `summarise_deterioration_results.ipynb`; and
+3. execute `plot_deterioration_results.ipynb`.
+
+
+## Gatekeeping Experiments
+
+The gatekeeping experiments examine alternative assumptions concerning the total level of referral access and the allocation of that access across severity cohorts.
+
+The experiment configurations are located in:
+
+```text
+experiments/gatekeeping/configs/
+```
+
+The available configuration modules are:
+
+```text
+strict_priority.py
+fixed_capacity.py
+fixed_capacity_proportional.py
+weighted_111.py
+weighted_123.py
+split_capacity.py
+```
+
+Parameters shared across the experiments are defined in:
+
+```text
+experiments/gatekeeping/configs/common.py
+```
+
+The hybrid experiment runner is:
+
+```text
+experiments/gatekeeping/run/run_hybrid_parallel.py
+```
+
+The active gatekeeping configuration is selected through the `scenario_config` import near the beginning of the runner. For example:
+
+```python
+from configs import weighted_123 as scenario_config
+```
+
+After selecting the required configuration, run the experiment from the repository root using:
+
+```bash
+python experiments/gatekeeping/run/run_hybrid_parallel.py
+```
+
+For each scenario, the SD component is solved once. Its severity-specific referral outputs are then used to run the configured DES replications. Independent DES trials are executed in parallel using Python's `multiprocessing` module.
+
+The experiment runner records:
+
+- SD stock and referral arrays;
+- patient-level simulation records;
+- patient-, cohort-, and activity-level summaries;
+- scenario metadata;
+- trial numbers; and
+- random seeds.
+
+Generated outputs are written beneath:
+
+```text
+experiments/gatekeeping/outputs/
+```
+
+The public repository does not currently include the full gatekeeping analysis notebooks or the empirical inputs required to reproduce the final thesis results.
+
 ## Author ORCID
 
 - Matthew Howells: [0000-0002-3931-7027](https://orcid.org/0000-0002-3931-7027)
