@@ -25,6 +25,11 @@ authors:
     orcid: 'https://orcid.org/0000-0001-7865-6964'
     affiliation: Cardiff University
     email: PalmerGI1@cardiff.ac.uk
+identifiers:
+  - type: doi
+    value: doi.org/10.5281/zenodo.21626604
+  - type: url
+    value: 'https://github.com/MHowells/orthopaedic-hybrid-model'
 repository-code: 'https://github.com/MHowells/orthopaedic-hybrid-model'
 abstract: >-
   This repository contains a sequential hybrid simulation
@@ -55,3 +60,5 @@ keywords:
   - hybrid simulation
   - hybrid model
 license: MIT
+version: 1.0.0
+date-released: '2026-07-27'

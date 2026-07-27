@@ -1,5 +1,7 @@
 # Hybrid Simulation Modelling for Orthopaedics 
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21626604.svg)](https://doi.org/10.5281/zenodo.21626604)
+
 ## Overview
 
 This repository contains the Python implementation of a hybrid simulation model 
@@ -269,11 +271,27 @@ The public repository does not currently include the full gatekeeping analysis n
 
 ## Citation
 
-To cite this repository:
+If you use this repository in your research, please cite it as:
 
-> Matthew Howells, Paul Harper, Daniel Gartner, Geraint Palmer-Liyu (2025) Hybrid 
-Simulation Modelling for Orthopaedics. GitHub. 
-https://github.com/MHowells/HybridSimModel.
+Howells, M., Harper, P., Gartner, D.& Palmer-Liyu, G. (2026). orthopaedic-hybrid-model (Version v.1.0.0) [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.21626604
+
+Citation metadata are also available in [`CITATION.cff`](CITATION.cff).
+
+```bibtex
+@software{howells_2026_21626604,
+  author       = {Howells, Matthew and
+                  Harper, Paul and
+                  Gartner, Daniel and
+                  Palmer-Liyu, Geraint},
+  title        = {orthopaedic-hybrid-model},
+  month        = jul,
+  year         = 2026,
+  publisher    = {Zenodo},
+  version      = {v.1.0.0},
+  doi          = {10.5281/zenodo.21626604},
+  url          = {https://doi.org/10.5281/zenodo.21626604},
+}
+```
 
 ## Funding 
 

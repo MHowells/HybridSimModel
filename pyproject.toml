@@ -3,8 +3,8 @@ requires = ["setuptools>=77.0.3"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "hybrid-sim-model"
-version = "0.0.1"
+name = "orthopaedics-hybrid-model"
+version = "1.0.0"
 description = "A sequential hybrid simulation model of referral access and patient flow in elective Trauma and Orthopaedics."
 license = "MIT"
 readme = "README.md"
@@ -18,6 +18,7 @@ authors = [
 [project.urls]
 Repository = "https://github.com/MHowells/HybridSimModel"
 Issues = "https://github.com/MHowells/HybridSimModel/issues"
+"Zenodo record" = "https://doi.org/10.5281/zenodo.21626604"
 
 [tool.setuptools.packages.find]
 where = ["src"]
