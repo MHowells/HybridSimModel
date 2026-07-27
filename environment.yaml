@@ -10,5 +10,6 @@ dependencies:
   - pip
   - python=3.10.17
   - scipy=1.15.2
+  - pytest=8.4.2
   - pip:
     - ciw==3.2.5
