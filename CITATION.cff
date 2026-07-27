@@ -1,0 +1,57 @@
+cff-version: 1.2.0
+title: orthopaedic-hybrid-model
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Matthew
+    family-names: Howells
+    email: HowellsMA@cardiff.ac.uk
+    affiliation: Cardiff University
+    orcid: 'https://orcid.org/0000-0002-3931-7027'
+  - given-names: Paul
+    family-names: Harper
+    email: harper@cardiff.ac.uk
+    affiliation: Cardiff University
+    orcid: 'https://orcid.org/0000-0001-7894-4907'
+  - given-names: Daniel
+    family-names: Gartner
+    email: gartnerd@cardiff.ac.uk
+    affiliation: Cardiff University
+    orcid: 'https://orcid.org/0000-0003-4361-8559'
+  - given-names: Geraint
+    family-names: Palmer-Liyu
+    orcid: 'https://orcid.org/0000-0001-7865-6964'
+    affiliation: Cardiff University
+    email: PalmerGI1@cardiff.ac.uk
+repository-code: 'https://github.com/MHowells/orthopaedic-hybrid-model'
+abstract: >-
+  This repository contains a sequential hybrid simulation
+  model for examining the relationship between
+  musculoskeletal clinical need, referral access, patient
+  pathways, and service capacity in elective Trauma and
+  Orthopaedics. A System Dynamics component represents
+  changes in population-level demand and severity, while a
+  Discrete-Event Simulation component models the subsequent
+  progression of individual patients through
+  resource-constrained services. Patient routing is informed
+  by Probabilistic Deterministic Finite Automata learned
+  from historical pathways. The model supports the
+  evaluation of alternative deterioration, gatekeeping,
+  referral, and capacity assumptions, with outputs including
+  referral volumes, waiting times, queueing, pathway
+  completion, and resource use.
+keywords:
+  - simulation
+  - discrete-event simulation
+  - system dynamics
+  - Python
+  - DES
+  - orthopaedics
+  - orthopedics
+  - trauma and orthopaedics
+  - machine learning
+  - hybrid simulation
+  - hybrid model
+license: MIT
